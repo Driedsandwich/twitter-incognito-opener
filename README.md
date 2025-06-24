@@ -98,6 +98,6 @@ This is an independent tool and is not affiliated with Twitter or X.com.
 
 ---
 
-マジでよくわかってないまま進めたかので、へんなふうになってたらこっそり教えてください！
+マジでよくわかってないまま進めたので、へんなふうになってたらこっそり教えてください！
 
 ---
