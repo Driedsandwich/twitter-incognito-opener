@@ -3,16 +3,16 @@
 A lightweight Chrome extension that allows you to open Twitter links directly in an Incognito window.  
 This is useful for bypassing login prompts or simply browsing Twitter without being tracked.
 
-ツイッターのリンクを**シークレットモード（プライベートブラウザ）**で開ける軽量なChrome拡張です。  
+ツイッターのリンクをシークレットモード（プライベートブラウザ）で開ける軽量なChrome拡張です。  
 ログイン画面をスキップしたい場合や、追跡されずにTwitterを見るのに便利です。
 
 ## Features / 主な機能
 
-- Adds context menu item: “**Open Twitter link in Incognito**”
+- Adds context menu item: “Open Twitter link in Incognito”
 - Works on all Twitter-related links (including X.com)
 - Clean and minimal codebase
 
-- コンテキストメニュー（右クリック）に「**Open Twitter link in Incognito**」を追加
+- コンテキストメニュー（右クリック）に「Open Twitter link in Incognito」を追加
 - Twitter（X.com含む）関連のリンクで動作
 - シンプルかつ軽量なコード構成
 
