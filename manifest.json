@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Twitter Incognito Opener",
-  "version": "1.4.0",
+  "name": "PostCloak — x.comのポストをシークレットウィンドウで開く",
+  "version": "1.5.0",
   "default_locale": "en",
-  "description": "Opens an x.com post in an Incognito window. Works anywhere in the post, not only on links. Shift+Alt click or right-click.",
+  "description": "x.comのポスト本文を右クリック、またはShift+Altクリックすると、そのポストをシークレットウィンドウで開きます。X Corp.とは無関係の非公式ツールです。",
   "permissions": ["contextMenus", "scripting"],
   "host_permissions": [
     "https://x.com/*",
@@ -13,6 +13,9 @@
   ],
   "background": {
     "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "PostCloak"
   },
   "icons": {
     "16": "icons/icon16.png",

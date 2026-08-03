@@ -1,95 +1,93 @@
-# Twitter Incognito Opener
+# PostCloak
 
-A lightweight Chrome extension that allows you to open Twitter links directly in an Incognito window.  
-This is useful for bypassing login prompts or simply browsing Twitter without being tracked.
+x.com のポスト本文を **Shift+Alt クリック**、または右クリックメニューから選ぶと、そのポストをシークレットウィンドウで開く Chrome 拡張です。
 
-ツイッターのリンクをシークレットモード（プライベートブラウザ）で開ける軽量なChrome拡張です。  
-ログイン画面をスキップしたい場合や、追跡されずにTwitterを見るのに便利です。
-
----
-
-## ✅ Features / 主な機能
-
-- Adds context menu item: “Open Twitter link in Incognito”
-- Works on all Twitter-related links (including X.com)
-- Also supports other sites with Twitter links embedded (e.g. blogs, news)
-- Clean and minimal codebase
-
-- コンテキストメニュー（右クリック）に「Open Twitter link in Incognito」を追加
-- Twitter（X.com含む）関連のリンクで動作
-- 他サイト（ブログ・ニュースなど）上のツイッターリンクにも対応
-- シンプルかつ軽量なコード構成
+![Version](https://img.shields.io/badge/version-1.5.0-blue)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
+![Manifest](https://img.shields.io/badge/manifest-v3-green)
 
 ---
 
-## 💻 Confirmed Environment / 動作確認環境
+## なぜ要るのか
 
-- Windows 11 + Chrome バージョン 137.0.7151.120（Official Build）（64 ビット）で動作確認済み  
-- 他環境でも動作する可能性がありますが、未確認です。
+Chrome の「シークレット ウィンドウで開く」は**リンクの右クリックメニューの項目**です。カーソルの下に `<a>` 要素があるときにしか出ません。
 
----
+x.com のタイムラインでは、ポスト本文は `<a>` ではなく `<div>` にクリック処理が付いているだけです。だからポスト本文を右クリックしても、その選択肢は出てきません。`<a>` なのはタイムスタンプなど一部だけです。
 
-## 📦 Installation / インストール方法
+この拡張は、その**リンクになっていない場所からポストのURLを割り出して**開きます。
 
-1. Download or clone this repository.  
-   このリポジトリをダウンロードまたはクローンしてください。
-2. Go to `chrome://extensions` in your browser.  
-   Chromeのアドレスバーに `chrome://extensions` と入力。
-3. Enable "Developer mode" in the top right.  
-   右上の「デベロッパーモード」を有効化。
-4. Click "Load unpacked" and select the folder containing this extension.  
-   「パッケージ化されていない拡張機能を読み込む」を選び、展開したフォルダを指定。
+## 使い方
 
----
+| 操作 | 結果 |
+|---|---|
+| ポストのどこかを **Shift+Alt クリック** | そのポストをシークレットウィンドウで開く |
+| ポストのどこかを右クリック →「このポストをシークレットウィンドウで開く」 | 同上 |
 
-## 🐞 Feedback / 不具合・フィードバック
+どちらもポストの外（サイドバー、余白）では何も起きません。画面下に短い案内が出ます。
 
-バグ報告・要望・動作報告など、どんなことでも以下の方法でお知らせいただけると嬉しいです：
+**Shift+Alt クリックがリンクの上だったときは、この拡張は何もしません。** プロフィール、外部記事、ハッシュタグへのリンクを踏んだときに、本来の移動を奪ってしまわないようにするためです。右クリックメニューはこの制限を受けません（メニューの文言どおり、そのポストを開きます）。
 
-- [GitHub Issues](https://github.com/Driedsandwich/twitter-incognito-opener/issues)
-- あるいはリポジトリの Discussions や Pull Request などでも歓迎です
+## 動作する範囲
 
-Chrome ウェブストアへの公開も準備中です。  
-公開後のユーザーからのフィードバックもお待ちしています！
+- `x.com` / `www.x.com` / `twitter.com` / `www.twitter.com` の**ページ上でのみ**動きます
+- 第三者のサイトに埋め込まれたポスト（`platform.twitter.com` の iframe）では動きません。メニュー項目も出しません
+- `pro.x.com`（X Pro）は画面の作りが別で、対象外です
 
----
+## 権限とデータの扱い
 
-## 🪪 License / ライセンス
+| | |
+|---|---|
+| 要求する権限 | `contextMenus` と `scripting` の2つ |
+| 読み取るもの | 右クリック／Shift+Alt クリックした場所の周辺の DOM（ポストのURLを1つ取り出すため） |
+| 外部通信 | なし |
+| 保存するもの | なし（直前に割り出したURLを、そのタブのメモリ上に一時的に置くだけ。使ったら捨て、60秒で失効します） |
 
-MIT License
+`scripting` を使うのは1箇所だけです。**拡張のインストール・更新より前から開いていたタブに、content script を入れ直す**ときにだけ呼びます（Chrome は既に開いているタブへ遡って content script を入れないため、これが無いとインストール直後の右クリックが必ず空振りします）。ホスト権限も上記4つのドメインに限っています。
 
----
+詳細は [PRIVACY.md](./PRIVACY.md)。
 
-## 🙏 Credits & Acknowledgements / クレジットと謝辞
+## シークレットウィンドウについて
 
-This project was co-developed by a human and [ChatGPT (OpenAI)](https://openai.com/chatgpt),  
-through an iterative process of idea design, code structuring, and testing.
+- **毎回あたらしいウィンドウが開きます。** 既にあるシークレットウィンドウにタブを足すには、そのウィンドウを一覧する必要があり、それには `chrome://extensions` でこの拡張の「シークレット モードでの実行を許可」をオンにしなければなりません。既定ではオフなので、まとめたい場合は手動でオンにしてください
+- シークレットウィンドウは何枚開いても中身を共有します。**最後の1枚を閉じるまでセッションが残ります**
+- x.com はログインしていない状態で何件か読むと、ログインを促す表示が出ます。返信のツリーもほとんど表示されません
 
-本プロジェクトは、人間と [ChatGPT (OpenAI)](https://openai.com/chatgpt) による共同開発です。  
-設計・実装・テストの各工程を対話的に行いました。
+## インストール
 
-The original inspiration comes from the excellent project  
-[`francoischalifour/incognito-link`](https://github.com/francoischalifour/incognito-link),  
-which enables generic link opening in Incognito mode.  
-We extend our deepest respect and gratitude to its author for paving the way.
+Chrome ウェブストアには**まだ提出していません**。現在は手動での読み込みだけです。
 
-この拡張機能は、優れたプロジェクト  
-[`francoischalifour/incognito-link`](https://github.com/francoischalifour/incognito-link) に強く影響を受けています。  
-その功績に最大限の敬意と感謝を捧げます。
+1. このリポジトリを clone するか、ZIP でダウンロードして展開する
+2. Chrome で `chrome://extensions/` を開き、右上の **デベロッパー モード** を ON にする
+3. **「パッケージ化されていない拡張機能を読み込む」** から展開したフォルダを選ぶ
+4. すでに開いている x.com のタブがあれば再読み込みする
 
----
+## 完成度
 
-## ❗ Disclaimer / 免責事項
+個人が開発している非公式ツールです。導入を判断する材料として、現時点で確認できていることと、できていないことを分けて書きます。
 
-This is an independent tool and is not affiliated with Twitter or X.com.  
-本拡張機能はTwitterおよびX.comとは一切関係のない独立したツールです。
+**確認できているもの**
 
----
+- URLの割り出し — ログイン状態の x.com（ホーム／プロフィール）で固有ポスト14件。本文・引用ボックス・ユーザー名リンク・タイムスタンプの各起点で誤り0（2026-08-03 実測）
+- 同じ判定の前の版で、固有ポスト52件と引用ポスト5件でも誤り0
+- 境界の扱い — ホスト偽装・絶対URL・派生リンク（`/photo/1`・`/analytics` など）・リンク上での打ち切り、計33ケースの自動テスト
 
-## 📌 Note / 備考
+**確認できていないもの**
 
-文系の素人がマジでよくわかってないまま進めたので、へんなふうになってたらこっそり教えてください！  
-Made by a clueless liberal arts guy fumbling his way through.  
-If anything looks weird, please drop me a kind word quietly 😅
+- **拡張を Chrome に読み込んだ状態での動作全般。** 上の数字はページ側のURL割り出しまでで、メニュー項目が実際に出ることも、シークレットウィンドウが実際に開くことも含みません
+- 「シークレット モードでの実行を許可」がオフのままシークレットウィンドウを開けるか
+- ログインしていない状態の x.com が、個別のポストをどこまで表示するか
+- Windows / Linux での表示
 
----
+継続的な保守を約束できる体制ではありません。不具合は Issue でお知らせください。
+
+## ライセンス
+
+[MIT](./LICENSE)
+
+## 由来
+
+着想は [`francoischalifour/incognito-link`](https://github.com/francoischalifour/incognito-link) から得ています（同リポジトリは 2017年6月で更新が止まっています）。初期版は ChatGPT との対話で書きました。
+
+## 免責
+
+本拡張は X Corp. とは無関係の独立したツールで、同社による承認・後援を受けていません。X および Twitter は X Corp. の商標です。
