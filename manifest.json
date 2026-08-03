@@ -4,7 +4,10 @@
   "version": "1.5.0",
   "default_locale": "en",
   "description": "x.comのポスト本文を右クリック、またはShift+Altクリックすると、そのポストをシークレットウィンドウで開きます。X Corp.とは無関係の非公式ツールです。",
-  "permissions": ["contextMenus", "scripting"],
+  "permissions": [
+    "contextMenus",
+    "scripting"
+  ],
   "host_permissions": [
     "https://x.com/*",
     "https://www.x.com/*",
@@ -30,9 +33,11 @@
         "https://twitter.com/*",
         "https://www.twitter.com/*"
       ],
-      "js": ["content.js"],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_start"
     }
   ],
-  "homepage_url": "https://github.com/Driedsandwich/twitter-incognito-opener"
+  "homepage_url": "https://github.com/Driedsandwich/postcloak"
 }
