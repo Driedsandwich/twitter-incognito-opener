@@ -1,27 +1,21 @@
 {
-  "manifest_version": 3,
   "name": "Twitter Incognito Opener",
-  "version": "1.0.0",
-  "description": "Open Twitter links in Incognito mode via right-click menu. Designed with ChatGPT and inspired by francoischalifour/incognito-link.",
-  "permissions": ["contextMenus"],
-  "host_permissions": ["*://*.twitter.com/*", "*://*.x.com/*"],
+  "version": "1.3.1",
+  "manifest_version": 3,
+  "description": "Open Twitter links in Incognito mode with Shift+Alt click or context menu (even outside <a> tags).",
+  "permissions": ["tabs", "scripting", "contextMenus"],
+  "host_permissions": ["<all_urls>"],
+  "icons": {
+    "128": "icon.png"
+  },
   "background": {
     "service_worker": "background.js"
   },
-  "icons": {
-    "16": "icon.png",
-    "48": "icon.png",
-    "128": "icon.png"
-  },
   "content_scripts": [
     {
-      "matches": ["*://*.twitter.com/*", "*://*.x.com/*"],
-      "js": ["content.js"]
+      "matches": ["https://twitter.com/*", "https://x.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
     }
-  ],
-  "action": {
-    "default_title": "Twitter Incognito Opener"
-  },
-  "author": "Human + ChatGPT",
-  "homepage_url": "https://github.com/Driedsandwich/twitter-incognito-opener"
+  ]
 }
