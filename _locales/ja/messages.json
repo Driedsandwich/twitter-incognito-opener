@@ -1,0 +1,22 @@
+{
+  "menuOpenInIncognito": {
+    "message": "このポストをシークレットウィンドウで開く（Shift+Alt クリック）",
+    "description": "x.com のページで出す右クリックメニューの項目。"
+  },
+  "errorNoPostFound": {
+    "message": "ここにはポストがありません。ポストの中で右クリックしてください。",
+    "description": "右クリックした場所がポストに属していないときに出す。"
+  },
+  "errorRetryNeeded": {
+    "message": "準備ができました。もう一度お試しください。",
+    "description": "すでに開いていたタブへ content script を入れ直したあとに出す。"
+  },
+  "errorDisconnected": {
+    "message": "拡張とつながっていません。ページを再読み込みしてください。",
+    "description": "拡張のコンテキストが失効して sendMessage が例外になったときに出す。"
+  },
+  "errorIncognitoUnavailable": {
+    "message": "シークレットウィンドウを開けませんでした。このブラウザでシークレットモードが無効になっている可能性があります。",
+    "description": "chrome.windows.create({incognito:true}) が失敗したときに出す。"
+  }
+}
