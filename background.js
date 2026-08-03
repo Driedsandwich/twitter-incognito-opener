@@ -1,4 +1,4 @@
-// Twitter Incognito Opener – background.js（service worker）
+// PostCloak – background.js（service worker）
 // 右クリックメニューを出し、content script が割り出したポストURLを
 // シークレットウィンドウで開く。URL の割り出しは content script 側の担当。
 
