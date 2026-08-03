@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PostCloak — x.comのポストをシークレットウィンドウで開く",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "default_locale": "en",
   "description": "x.comのポスト本文を右クリック、またはShift+Altクリックすると、そのポストをシークレットウィンドウで開きます。X Corp.とは無関係の非公式ツールです。",
   "permissions": [

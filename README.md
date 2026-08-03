@@ -2,7 +2,7 @@
 
 x.com のポスト本文を **Shift+Alt クリック**、または右クリックメニューから選ぶと、そのポストをシークレットウィンドウで開く Chrome 拡張です。
 
-![Version](https://img.shields.io/badge/version-1.5.0-blue)
+![Version](https://img.shields.io/badge/version-1.6.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 ![Manifest](https://img.shields.io/badge/manifest-v3-green)
 
