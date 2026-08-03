@@ -1,0 +1,22 @@
+{
+  "menuOpenInIncognito": {
+    "message": "Open this post in an Incognito window (Shift+Alt click)",
+    "description": "Context menu item shown on x.com pages."
+  },
+  "errorNoPostFound": {
+    "message": "No post here. Right-click inside a post.",
+    "description": "Shown when the right-clicked spot does not belong to a post."
+  },
+  "errorRetryNeeded": {
+    "message": "Ready now — please try once more.",
+    "description": "Shown after the content script had to be re-injected into an already-open tab."
+  },
+  "errorDisconnected": {
+    "message": "Lost the connection to the extension. Reload this page.",
+    "description": "Shown when sendMessage throws because the extension context was invalidated."
+  },
+  "errorIncognitoUnavailable": {
+    "message": "Could not open an Incognito window. Incognito mode may be turned off in this browser.",
+    "description": "Shown when chrome.windows.create({incognito:true}) fails."
+  }
+}

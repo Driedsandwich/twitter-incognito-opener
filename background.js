@@ -1,41 +1,157 @@
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: "open-in-incognito",
-    title: "ｼｰｸﾚｯﾄｳｨﾝﾄﾞｳで開く(Shift+Alt)(URL自動検出)",
-    contexts: ["all"]
-  });
-});
+// Twitter Incognito Opener – background.js（service worker）
+// 右クリックメニューを出し、content script が割り出したポストURLを
+// シークレットウィンドウで開く。URL の割り出しは content script 側の担当。
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === "open-in-incognito") {
-    if (info.linkUrl) {
-      chrome.windows.create({
-        url: info.linkUrl,
-        incognito: true
-      });
-    } else {
-      chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
-          const sel = window.getSelection();
-          const article = sel.anchorNode?.parentElement?.closest('article');
-          const link = article?.querySelector('a[href*="/status/"]');
-          if (link) {
-            chrome.runtime.sendMessage({ url: location.origin + link.getAttribute("href") });
-          } else {
-            alert("開けるリンクが見つかりませんでした。");
-          }
-        }
-      });
-    }
-  }
-});
+const MENU_ID = 'open-in-incognito';
 
-chrome.runtime.onMessage.addListener(({ url }) => {
-  if (url) {
-    chrome.windows.create({
-      url: url,
-      incognito: true
+// メニューを出す画面。ここを絞らないと、無関係な全サイトの右クリックに項目が出る。
+//
+// サブドメインのワイルドカード（*.x.com）は使わない。documentUrlPatterns の照合対象は
+// ページではなく「右クリックされたフレームのURL」なので、ワイルドカードにすると
+// 第三者のブログに埋め込まれたポスト（platform.twitter.com の iframe）にも項目が出る。
+// そこには content script がいないので、押しても何も起きない項目になってしまう。
+const TARGET_PAGES = [
+  'https://x.com/*',
+  'https://www.x.com/*',
+  'https://twitter.com/*',
+  'https://www.twitter.com/*',
+];
+
+const ALLOWED_HOST = /^(www\.)?(x|twitter)\.com$/i;
+
+/* ---------- メニューの登録 ---------- */
+
+// contexts に "all" は使わない。"all" は拡張アイコンの右クリックメニューも含み、
+// そちらには documentUrlPatterns が適用されないため、
+// 「どのサイトでも出るのに押しても何も起きない項目」が残ってしまう。
+const MENU_CONTEXTS = ['page', 'selection', 'link', 'image', 'video', 'audio'];
+
+// onInstalled だけだと、ブラウザ再起動後に service worker が起きたときに
+// 二重登録の例外が出ることがあるため、作り直しに寄せる。
+function createMenu() {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: MENU_ID,
+      title: chrome.i18n.getMessage('menuOpenInIncognito'),
+      contexts: MENU_CONTEXTS,
+      documentUrlPatterns: TARGET_PAGES,
     });
+  });
+}
+
+chrome.runtime.onInstalled.addListener(createMenu);
+chrome.runtime.onStartup.addListener(createMenu);
+
+/* ---------- メニューが押されたとき ---------- */
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId !== MENU_ID) return;
+
+  // tab は公式に optional。開発者ツールなど、タブを伴わない場面では届かない。
+  const tabId = tab && tab.id;
+  if (typeof tabId !== 'number') return;
+
+  // 右クリックされたフレームを名指しで呼ぶ。指定しないと、
+  // どのフレームで右クリックしてもトップフレームが答えることになる。
+  const frameId = typeof info.frameId === 'number' ? info.frameId : 0;
+
+  // リンクの上で右クリックした場合、それがポストのURLならそのまま使う。
+  // ポスト以外のリンク（プロフィール、外部サイト）は使わず、
+  // content script に「そのリンクが載っているポスト」を割り出させる。
+  const direct = toPostUrl(info.linkUrl);
+  if (direct) {
+    openIncognito(direct, tabId, frameId);
+    return;
   }
+
+  let res;
+  try {
+    res = await chrome.tabs.sendMessage(tabId, { type: 'getContextTarget' }, { frameId });
+  } catch (e) {
+    // 拡張のインストール・更新より前から開いていたタブには content script がいない
+    // （Chrome は既存タブへ遡って注入しない）。黙って何も起きないのが旧実装の
+    // いちばん困る挙動だったので、その場で入れ直したうえで画面にも出す。
+    await reviveContentScript(tabId, frameId);
+    return;
+  }
+
+  // URL が無いときの画面への通知は content script 側が出している（この応答の前に）。
+  if (res && res.url) openIncognito(res.url, tabId, frameId);
 });
+
+// content script を入れ直し、「もう一度どうぞ」を画面に出す。
+// 右クリックはもう終わっているので、この回の操作は完了できない。
+async function reviveContentScript(tabId, frameId) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId, frameIds: [frameId] },
+      files: ['content.js'],
+    });
+    await chrome.tabs.sendMessage(
+      tabId,
+      { type: 'notify', text: chrome.i18n.getMessage('errorRetryNeeded') },
+      { frameId }
+    );
+  } catch (e) {
+    console.warn('[tio] content script を入れ直せませんでした:', e);
+  }
+}
+
+/* ---------- Shift+Alt クリックから ---------- */
+
+chrome.runtime.onMessage.addListener((msg, sender) => {
+  if (!msg || msg.type !== 'open') return false;
+  const url = toPostUrl(msg.url);
+  // 送り主のタブ以外からのメッセージは扱わない。
+  if (url && sender.tab && typeof sender.tab.id === 'number') {
+    openIncognito(url, sender.tab.id, sender.frameId);
+  }
+  return false;
+});
+
+/* ---------- シークレットウィンドウを開く ---------- */
+
+// 拡張が「シークレット モードでの実行を許可」を持っていなくても、
+// ウィンドウ自体は開く（戻り値が null になるだけ）。
+// 開けないのは、シークレットモードが組織のポリシー等で無効化されている場合。
+// 旧実装は失敗を握り潰していたので、ここでは必ず利用者へ返す。
+//
+// 開くのは毎回あたらしいウィンドウ。既にあるシークレットウィンドウへタブを足すには
+// そのウィンドウを列挙する必要があり、それには「シークレット モードでの実行を許可」が要る。
+async function openIncognito(url, tabId, frameId) {
+  try {
+    await chrome.windows.create({ url, incognito: true });
+  } catch (e) {
+    console.error('[tio] シークレットウィンドウを開けませんでした:', e);
+    tell(tabId, frameId, chrome.i18n.getMessage('errorIncognitoUnavailable'));
+  }
+}
+
+function tell(tabId, frameId, text) {
+  const opts = typeof frameId === 'number' ? { frameId } : undefined;
+  chrome.tabs.sendMessage(tabId, { type: 'notify', text }, opts).catch(() => {});
+}
+
+/* ---------- 共通 ---------- */
+
+// 受け取った URL が x.com / twitter.com のポストURLであることを必ず確かめる。
+// content script から来た値も、メニューの info.linkUrl も、ここを通してから開く。
+function toPostUrl(href) {
+  if (!href || !href.includes('/status/')) return null;
+  let url;
+  try {
+    url = new URL(href);
+  } catch (e) {
+    return null;
+  }
+  if (url.protocol !== 'https:') return null;
+  if (!ALLOWED_HOST.test(url.hostname)) return null;
+  url.pathname = url.pathname.replace(
+    /\/(photo|video|analytics|likes|retweets|quotes)(\/\d+)?\/?$/,
+    ''
+  );
+  // ポストのURLは必ず /status/<数字> の形をしている。
+  if (!/\/status\/\d+/.test(url.pathname)) return null;
+  url.hash = '';
+  return url.href;
+}
