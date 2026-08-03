@@ -1,4 +1,4 @@
-// Twitter Incognito Opener – content.js
+// PostCloak – content.js
 // 右クリックまたは Shift+Alt クリックした場所から「そのポストのURL」を割り出し、
 // background へ渡す。ページの DOM は書き換えない（読み取りと、失敗時の通知だけ）。
 //
