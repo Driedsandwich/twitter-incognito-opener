@@ -9,5 +9,9 @@ Thumbs.db
 .vscode/
 .idea/
 
-# 配布物（ストア提出用の ZIP はリポジトリの外で作る）
+# 配布物（npm run package の出力先）
+dist/
 *.zip
+
+# Node（依存パッケージは使わないが、間違って入れたときに巻き込まないように）
+node_modules/

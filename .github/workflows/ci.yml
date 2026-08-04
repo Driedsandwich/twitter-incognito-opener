@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 読み取りだけで足りる。書き込み権限は与えない。
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # 依存パッケージは無いので install は要らない
+      - name: JavaScript の構文検査
+        run: |
+          node --check post-url.js
+          node --check background.js
+          node --check content.js
+
+      - name: JSON の構文検査
+        run: |
+          python3 -m json.tool manifest.json > /dev/null
+          python3 -m json.tool _locales/en/messages.json > /dev/null
+          python3 -m json.tool _locales/ja/messages.json > /dev/null
+          python3 -m json.tool package.json > /dev/null
+
+      - name: テスト
+        run: npm test
