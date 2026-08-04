@@ -54,12 +54,17 @@ x.com のタイムラインでは、ポスト本文は `<a>` ではなく `<div>
 
 ## インストール
 
-Chrome ウェブストアには**まだ提出していません**。現在は手動での読み込みだけです。
+**[Chrome ウェブストアで公開しています](https://chromewebstore.google.com/detail/pekgcaiokjokphdlmnkldmclffkeepnh)**（2026-08-03 公開・v1.6.0）。
+
+<details>
+<summary>ソースから手動で読み込む場合</summary>
 
 1. このリポジトリを clone するか、ZIP でダウンロードして展開する
 2. Chrome で `chrome://extensions/` を開き、右上の **デベロッパー モード** を ON にする
 3. **「パッケージ化されていない拡張機能を読み込む」** から展開したフォルダを選ぶ
 4. すでに開いている x.com のタブがあれば再読み込みする
+
+</details>
 
 ## 完成度
 

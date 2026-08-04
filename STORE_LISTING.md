@@ -260,10 +260,23 @@ No network requests are made to any server.
 
 出典: [review-process](https://developer.chrome.com/docs/webstore/review-process)
 
-### 通過したらやること
+### 審査の結果 — **公開されました（2026-08-03）**
 
-- 掲載URLを README と GitHub の Website 欄へ記載する
-- 自動公開を外していた場合は、通過から30日以内に手動で公開する
+| | |
+|---|---|
+| 掲載URL | https://chromewebstore.google.com/detail/pekgcaiokjokphdlmnkldmclffkeepnh |
+| 拡張機能ID | `pekgcaiokjokphdlmnkldmclffkeepnh` |
+| 反映済み | README のインストール節・GitHub の Website 欄 |
+
+RepoGloss も同日に公開されています（`ihkkhkleamggokepaelapoiabgmpljnn`）。
+
+> **掲載ページに出る連絡先メールは `driedsandwichgit@gmail.com` です**（`sts0516k@gmail.com` ではありません）。ストアの掲載ページは開発者の連絡先メールを公開する仕様で、隠すことはできません。差し替えるしかない欄なので、いま出ているアドレスで問題ないかだけ確認しておいてください。
+
+### 次に更新するとき
+
+- `manifest.json` の `version` を **1.6.0 より上**にする（同一以下のバージョンは再アップロードを拒否される）
+- データ収集「ウェブサイトのコンテンツ」は **「収集しない」** のまま維持する
+- 手順は §0〜§6 がそのまま使える。ZIP だけ作り直す
 
 ---
 ---
