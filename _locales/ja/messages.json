@@ -1,4 +1,16 @@
 {
+  "extName": {
+    "message": "PostCloak — x.comのポストをシークレットウィンドウで開く",
+    "description": "Chrome とウェブストアに出る拡張の名前。"
+  },
+  "extDescription": {
+    "message": "x.comのポスト本文を右クリック、またはShift+Altクリックすると、そのポストをシークレットウィンドウで開きます。X Corp.とは無関係の非公式ツールです。",
+    "description": "Chrome とウェブストアに出る拡張の説明。"
+  },
+  "actionTitle": {
+    "message": "PostCloak",
+    "description": "ツールバーのアイコンに出す説明。"
+  },
   "menuOpenInIncognito": {
     "message": "このポストをシークレットウィンドウで開く（Shift+Alt クリック）",
     "description": "x.com のページで出す右クリックメニューの項目。"

@@ -7,14 +7,18 @@
 (() => {
   const VERSION = chrome.runtime.getManifest().version;
   // 同じ版が既にこのページで動いているなら何もしない（二重登録の防止）。
-  if (window.__tioLoaded === VERSION) return;
-  window.__tioLoaded = VERSION;
+  if (window.__postCloakLoaded === VERSION) return;
+  window.__postCloakLoaded = VERSION;
+
+  // URL の判定は post-url.js が持っている。manifest の content_scripts でも、
+  // background の入れ直しでも、必ず post-url.js → content.js の順に読む。
+  // 読めていないときに黙って死ぬと、原因の分からない無反応になるので出しておく。
+  if (typeof PostCloakUrl === 'undefined') {
+    console.error('[PostCloak] post-url.js が読み込まれていません');
+    return;
+  }
 
   /* ---------- 0. 定数 ---------- */
-
-  // 解決したURLの行き先が、必ずここに載っているホストであることを確かめる。
-  // href が絶対URLだったときに、まったく別のサイトをシークレットで開かないため。
-  const ALLOWED_HOST = /^(www\.)?(x|twitter)\.com$/i;
 
   // 右クリックの直後にメニューが押される前提の仕組みなので、古い値は使わない。
   const CONTEXT_TTL_MS = 60_000;
@@ -46,12 +50,12 @@
 
     while (el && el !== document.documentElement) {
       if (el.tagName === 'A') {
-        const url = toPostUrl(el.getAttribute('href'));
+        const url = postUrl(el.getAttribute('href'));
         if (url) return url;
         if (stopAtLink) return null;
       }
       if (el.tagName === 'ARTICLE') {
-        return toPostUrl(permalinkHref(el));
+        return postUrl(permalinkHref(el));
       }
       el = el.parentElement;
     }
@@ -68,32 +72,10 @@
     return a ? a.getAttribute('href') : null;
   }
 
-  // href を絶対URLにし、x.com / twitter.com のポストURLであれば返す。それ以外は null。
-  function toPostUrl(href) {
-    if (!href || !href.includes('/status/')) return null;
-    let url;
-    try {
-      // 旧実装は location.origin + href を素で連結していたため、href が絶対URLだと
-      // "https://x.comhttps://x.com/…" という壊れたURLを作っていた。
-      url = new URL(href, location.href);
-    } catch (e) {
-      return null;
-    }
-    // http:// を弾く。x.com は https のみで、混在した絶対URLを掴む理由がない。
-    if (url.protocol !== 'https:') return null;
-    if (!ALLOWED_HOST.test(url.hostname)) return null;
-    // /photo/1 /analytics /likes などの派生リンクは、ポスト本体に戻してから開く。
-    // これらは 301 せず 200 を返すので、そのまま開くと目的の画面に着かない。
-    url.pathname = url.pathname.replace(
-      /\/(photo|video|analytics|likes|retweets|quotes)(\/\d+)?\/?$/,
-      ''
-    );
-    // ポストのURLは必ず /status/<数字> の形をしている。
-    // これを見ないと、"/status/" を含むだけの壊れた href が相対パスとして解釈され、
-    // x.com の存在しないページを開いてしまう。
-    if (!/\/status\/\d+/.test(url.pathname)) return null;
-    url.hash = '';
-    return url.href;
+  // ページ内の href は相対形（/alice/status/123）で書かれているので、
+  // このページのURLを基準として渡す。判定そのものは post-url.js が持つ。
+  function postUrl(href) {
+    return PostCloakUrl.toPostUrl(href, location.href);
   }
 
   /* ---------- 2. 右クリック ---------- */
@@ -164,7 +146,7 @@
   }
 
   function onSendError(e) {
-    console.error('[tio] background へ渡せませんでした:', e);
+    console.error('[PostCloak] background へ渡せませんでした:', e);
     notify(chrome.i18n.getMessage('errorDisconnected'));
   }
 
@@ -180,6 +162,11 @@
     if (!text || !document.body) return;
     if (!toastEl) {
       toastEl = document.createElement('div');
+      // 読み上げ環境へも同じ内容を届ける。role="status" は割り込まずに読ませる指定で、
+      // フォーカスは動かない（この帯は操作対象ではなく、押せる要素も持たない）。
+      toastEl.setAttribute('role', 'status');
+      toastEl.setAttribute('aria-live', 'polite');
+      toastEl.setAttribute('aria-atomic', 'true');
       Object.assign(toastEl.style, {
         position: 'fixed',
         left: '50%',
