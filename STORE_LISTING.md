@@ -26,7 +26,9 @@ PostCloak は、そのリンクになっていない場所からポストのURL�
 ・ポストのどこかを Shift+Alt クリックする
 ・またはポストのどこかを右クリックして「このポストをシークレットウィンドウで開く」を選ぶ
 
-どちらも同じ結果になります。ポストの外（サイドバーや余白）では何も起きません。
+どちらも同じ結果になります。
+ポストの外（サイドバーや余白）を右クリックして選んだときは、ウィンドウは開かず、
+画面下に短い案内が出ます。Shift+Alt クリックのときは何も起きません。
 
 ■ 動作する範囲
 x.com / www.x.com / twitter.com / www.twitter.com のページ上だけです。
@@ -38,15 +40,21 @@ pro.x.com（X Pro）は画面の作りが別で、対象外です。
 　タブを足す機能はありません
 ・シークレットウィンドウは何枚開いても中身を共有し、最後の1枚を閉じるまで
 　セッションが残ります
-・リンクの上で Shift+Alt クリックしたときは、この拡張は何もしません。
-　プロフィールや外部記事への移動を奪わないためです
+・ポストのURLでないリンク（プロフィール、外部記事、ハッシュタグなど）の上で
+　Shift+Alt クリックしたときは、この拡張は何もせず、本来の移動をそのまま通します。
+　ポストのパーマリンクや画像のリンクは、そのポストとして扱います
 
 ■ プライバシー
-拡張自身が外部のサーバーへ通信することはありません。
-右クリックした場所の周辺の DOM を読みますが、ポストのURLを1つ取り出すためだけに使い、
-端末の外へ出しません。永続的な保存もしません。
+右クリックまたは Shift+Alt クリックした場所の周辺の DOM と、そこから取り出した
+ポストのURL1件を、端末内で取り扱います。そのポストをシークレットウィンドウで開く
+ためだけに使い、端末の外へは出しません。
+拡張自身が外部のサーバーへ通信することはありません（解析サービス・広告・外部APIの
+いずれも使っていません）。右クリック経路のURLは、そのタブのメモリに最大60秒だけ置き、
+使ったら捨てます。永続的な保存はしません。
 （ポストを開いたときは、Chrome がそのURLへ通常どおりページを読み込みます）
 要求する権限は contextMenus と scripting の2つで、閲覧履歴を読む権限は要求しません。
+本拡張によるユーザーデータの利用は、Chrome ウェブストア ユーザーデータ ポリシー
+（Limited Use 要件を含む）に準拠します。
 
 ■ 免責
 本拡張は X Corp. とは無関係の独立したツールで、同社による承認・後援を受けていません。
@@ -72,7 +80,9 @@ PostCloak works out the post's URL from those non-link areas and opens it.
 - Shift+Alt click anywhere on a post
 - Or right-click a post and choose "Open this post in an Incognito window"
 
-Both do the same thing. Nothing happens outside a post (sidebar, margins).
+Both do the same thing.
+Outside a post (sidebar, margins): choosing the menu item opens no window and shows a
+short notice at the bottom of the page. A Shift+Alt click there does nothing at all.
 
 ■ Where it runs
 Only on pages of x.com / www.x.com / twitter.com / www.twitter.com.
@@ -83,16 +93,22 @@ pro.x.com (X Pro) has a different layout and is out of scope.
 - A new Incognito window opens every time. There is no feature that adds a tab to an
   Incognito window you already have open.
 - Incognito windows share one session; it lasts until you close the last one.
-- Shift+Alt clicking on a link does nothing, so that links to profiles or external
-  articles keep working normally.
+- Shift+Alt clicking a link that is not a post URL (a profile, an external article, a
+  hashtag) does nothing, and the normal navigation goes through untouched. A post
+  permalink or a post image link is treated as that post.
 
 ■ Privacy
-The extension itself makes no network requests to any server.
-It reads the DOM around the point you clicked, solely to extract one post URL, and
-nothing leaves your device. Nothing is stored persistently.
+This extension handles, on your device, the DOM around the point you right-clicked or
+Shift+Alt clicked, plus the one post URL extracted from it. That is used solely to open
+the post in an Incognito window, and it never leaves your device.
+The extension itself makes no network requests to any server (no analytics, no ads, no
+external APIs). On the right-click path, the URL is held in that tab's memory for at
+most 60 seconds and discarded once used. Nothing is stored persistently.
 (When the post opens, Chrome loads that URL as an ordinary page navigation.)
 It requests two permissions, contextMenus and scripting, and does not request
 permission to read your browsing history.
+The use of user data by this extension complies with the Chrome Web Store User Data
+Policy, including the Limited Use requirements.
 
 ■ Disclaimer
 This is an independent, unofficial tool. It is not affiliated with, endorsed by, or
@@ -150,9 +166,37 @@ That is the extension's only function.
 
 **「いいえ」**。外部スクリプトの読み込み、`eval()` による遠隔文字列の実行、CDN からのライブラリ取得のいずれも行っていません。
 
-## 5. データ収集の申告
+## 5. データの取り扱いと、ダッシュボードでの申告
 
-| 項目 | 申告 |
+ここは**「コードから確定できる事実」と「人間が画面を見て決めること」を分けて**書きます。ダッシュボードのフォームは非公開の画面で、文言も改定されるため、コードだけを根拠にチェック内容を確定できません。
+
+### 5.1 実装上の事実（コードから確定できる）
+
+- 利用者が右クリックまたは Shift+Alt クリックしたとき、その位置の周辺の DOM を**端末内で読む**
+- そこからポストのURLを**1件だけ**取り出す。URLには投稿者にあたる部分（`/<利用者名>/`）が含まれる
+- 右クリック経路では、取り出したURL1件をそのタブのメモリに**最大60秒だけ**置く。一度使うか、失効するか、ページを離れると捨てる
+- 開発者・独自サーバー・第三者へ**送信しない**
+- **永続保存しない**（ディスクにも `chrome.storage` にも書かない）
+- 利用者がポストを開いたときは、Chrome がそのURLへ**通常どおりページを読み込む**
+
+> **注意**: Chrome ウェブストアの「取り扱う（handle）」は**収集・送信・使用・共有**の4つを指し、**端末内だけの処理でも開示が必要**です（公式 User Data FAQ）。「外部送信がない」ことは「何も取り扱っていない」ことを意味しません。**「収集とは端末外への転送のこと」と読み替えて申告を決めないこと。**
+
+### 5.2 ダッシュボードで人間が決めること
+
+**フォームに添えられている現行の定義文を読んでから決めてください。** 過小申告は拒否事由になりますが、過大申告は拒否事由になりません。
+
+| 項目 | 決め方 |
+|---|---|
+| **ウェブサイトのコンテンツ** | **必ず再評価する。** 本拡張は DOM を端末内で読む。現行フォームの定義が端末内の使用を含むかを確認する |
+| **ウェブ閲覧履歴** | **必ず再評価する。** 公式 FAQ は「利用者が要求・操作したウェブリソースの情報（ドメインやURLを含む）」を user data の例に挙げている。ポストURLの一時的な使用がこの定義に当たるかを、現行フォームの文言で確認する |
+| 個人を特定できる情報／健康／金融・決済／認証情報／個人的な通信内容／位置情報／ユーザーの操作 | 実装上、いずれも扱っていない |
+| 限定利用（Limited Use） | チェックを入れる。準拠文は [PRIVACY.md](./PRIVACY.md) §7 に日英とも記載済み |
+
+### 5.3 前回（2026-08-03 提出時）に申告した内容の記録
+
+これは**当時そう申告したという記録**であり、現行フォームでの正しさを保証するものではありません。次回の提出前に 5.2 のとおり再確認してください。
+
+| 項目 | 2026-08-03 の申告 |
 |---|---|
 | 個人を特定できる情報 | 収集しない |
 | 健康情報 | 収集しない |
@@ -163,15 +207,9 @@ That is the extension's only function.
 | ウェブ閲覧履歴 | 収集しない |
 | ユーザーの操作 | 収集しない |
 | ウェブサイトのコンテンツ | 収集しない |
+| 限定利用 | チェックあり |
 
-限定利用（Limited Use）にはチェックを入れています。開示した単一目的を超えるデータの利用・転送を行っておらず、そもそも外部への転送がありません。
-
-「ウェブサイトのコンテンツ」を「収集しない」としている根拠は次のとおりです。**これは解釈であって、ウェブストアによる保証ではありません。**
-
-- 事実として、本拡張は右クリックまたは Shift+Alt クリックした場所の周辺の DOM を読み取ります。読み取るのはポストのURLを1つ取り出すためだけで、送信も永続保存もしません（直前の1件をそのタブのメモリに置き、使ったら捨て、60秒で失効します）
-- ウェブストアの「収集」は、利用者のデバイスから**転送すること**を指します。転送していないので「収集しない」に当たると解釈しています
-
-申告するときは、フォームに添えられている「収集」の定義文を読んでから決めてください。過小申告は拒否事由になりますが、過大申告は拒否事由になりません。
+確認した日付と画面の記録は、**このリポジトリの外**（提出用の素材を置いてある場所）に残してください。ダッシュボードの画面には、公開ページに出さない情報が含まれます。
 
 ## 6. 審査用のテスト手順（Provide test instructions 欄）
 

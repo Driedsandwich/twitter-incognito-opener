@@ -6,11 +6,21 @@
 
 ## 日本語
 
-### 1. 収集・送信するもの
+### 1. データの取り扱い
 
-**ありません。** 本拡張は、利用者の情報を収集せず、外部へ送信せず、第三者へ提供しません。**拡張自身が外部のサーバーへ通信することはありません**（解析サービス・広告・外部API・独自サーバーのいずれも使っていません）。
+Chrome ウェブストアのポリシーで「取り扱う（handle）」とは、**収集・送信・使用・共有**の4つを指します。そして**利用者の端末内だけで処理する場合も、その取り扱いを開示する必要があります**（Chrome ウェブストア User Data FAQ）。
 
-ただし1点だけ、通信そのものが起きないという意味ではありません。利用者がポストを開く操作をすると、**Chrome がそのポストのURLへ通常どおりページを読み込みます**。これは利用者がそのURLを自分でアドレスバーに入れて開いたときと同じ通信で、拡張が別のどこかへ情報を送っているわけではありません。
+そこで「端末内で何をしているか」と「外へ何が出るか」を分けて書きます。
+
+| | 内容 |
+|---|---|
+| **端末内で取り扱うもの** | 右クリックまたは Shift+Alt クリックした位置の周辺の DOM と、そこから取り出したポストのURL1件。そのポストをシークレットウィンドウで開くためだけに使います |
+| **開発者・独自サーバー・第三者が受け取るもの** | **ありません。** 解析サービス・広告・外部APIのいずれも使っていません |
+| **拡張自身による外部への送信** | **ありません** |
+| **永続的に保存するもの** | **ありません**（一時的な保持については §3） |
+| **Chrome による通常のページ読み込み** | **あります。** 利用者がポストを開く操作をすると、Chrome がそのポストのURLへ通常どおりページを読み込みます。これは利用者がそのURLを自分でアドレスバーに入れて開いたときと同じ通信で、拡張が別のどこかへ情報を送っているわけではありません |
+
+つまり「外部への送信がない」ことと「何も取り扱っていない」ことは別です。本拡張は**端末内でデータを使っています**。使っている内容と範囲を、以下の各節に書きます。
 
 ### 2. 読み取るもの
 
@@ -57,11 +67,17 @@ Manifest V3 のポリシーと既定の Content Security Policy はこれを禁�
 
 行いません。共有する相手が存在しません。
 
-### 7. 変更があった場合
+### 7. Chrome ウェブストア ユーザーデータ ポリシーへの準拠
+
+**本拡張によるユーザーデータの利用は、Chrome ウェブストア ユーザーデータ ポリシー（Limited Use 要件を含む）に準拠します。**
+
+具体的には、§1 に書いた単一の目的（利用者が選んだポストを、そのポストのURLでシークレットウィンドウに開くこと）のためだけに端末内でデータを使い、その目的を超える利用・転送・販売を行いません。
+
+### 8. 変更があった場合
 
 本ポリシーを変更する場合は、このファイルを更新し、リポジトリの更新履歴に残します。データの取り扱いを変える変更を行う場合は、拡張の更新より前に記載します。
 
-### 8. 連絡先
+### 9. 連絡先
 
 GitHub リポジトリの Issue でお願いします。
 
@@ -69,11 +85,21 @@ GitHub リポジトリの Issue でお願いします。
 
 ## English
 
-### 1. What we collect or transmit
+### 1. How this extension handles data
 
-**Nothing.** This extension does not collect, transmit, or share any user information. **The extension itself makes no network requests to any server** (no analytics, no ads, no external APIs, no server of our own).
+In Chrome Web Store policy, to "handle" data means **collecting, transmitting, using, or sharing** it — and **handling must be disclosed even when the data is only processed on the user's own device** (Chrome Web Store User Data FAQ).
 
-One clarification: that does not mean no traffic occurs at all. When you ask the extension to open a post, **Chrome loads that post's URL as a normal page navigation.** That is the same request you would make by typing the URL yourself; the extension is not sending anything anywhere else.
+So this section separates what happens on your device from what leaves it.
+
+| | Detail |
+|---|---|
+| **Handled on your device** | The DOM around the point you right-clicked or Shift+Alt clicked, and the one post URL extracted from it. Used solely to open that post in an Incognito window |
+| **Received by the developer, our own server, or any third party** | **Nothing.** No analytics, no ads, no external APIs |
+| **Transmitted by the extension itself** | **Nothing** |
+| **Stored persistently** | **Nothing** (see §3 for the temporary hold) |
+| **Ordinary page loads performed by Chrome** | **Yes.** When you ask the extension to open a post, Chrome loads that post's URL as a normal page navigation. It is the same request you would make by typing the URL yourself; the extension is not sending anything anywhere else |
+
+In other words, "nothing is transmitted externally" is not the same as "nothing is handled." This extension **does use data on your device.** The sections below describe exactly what and how much.
 
 ### 2. What we read
 
@@ -120,11 +146,17 @@ Manifest V3's policy and its default Content Security Policy forbid this, and th
 
 None. There is no recipient.
 
-### 7. Changes to this policy
+### 7. Compliance with the Chrome Web Store User Data Policy
+
+**The use of user data by this extension complies with the Chrome Web Store User Data Policy, including the Limited Use requirements.**
+
+Concretely: data is used on the device only for the single purpose stated in §1 — opening the post you selected in an Incognito window, using that post's own URL — and is not used, transferred, or sold beyond that purpose.
+
+### 8. Changes to this policy
 
 Changes will be made in this file and recorded in the repository history. Any change to data handling will be documented before the corresponding extension update is published.
 
-### 8. Contact
+### 9. Contact
 
 Please open an issue on the GitHub repository.
 
