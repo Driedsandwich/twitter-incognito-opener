@@ -78,7 +78,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 
   // URL が無いときの画面への通知は content script 側が出している（この応答の前に）。
-  if (res && res.url) openIncognito(res.url, tabId, frameId);
+  //
+  // 返ってきた URL も、開く前にもう一度通す。content script は自分の拡張のコードだが、
+  // 「開く直前に必ず1箇所で検証する」形にしておかないと、片方の経路だけ検証が抜けても
+  // 気づけない（実際、Shift+Alt 経路だけ検証していて、こちらは素通りしていた）。
+  if (res && res.url) {
+    const url = PostCloakUrl.toPostUrl(res.url);
+    if (url) openIncognito(url, tabId, frameId);
+  }
 });
 
 // content script を入れ直し、「もう一度どうぞ」を画面に出す。

@@ -8,15 +8,20 @@
   const VERSION = chrome.runtime.getManifest().version;
   // 同じ版が既にこのページで動いているなら何もしない（二重登録の防止）。
   if (window.__postCloakLoaded === VERSION) return;
-  window.__postCloakLoaded = VERSION;
 
   // URL の判定は post-url.js が持っている。manifest の content_scripts でも、
   // background の入れ直しでも、必ず post-url.js → content.js の順に読む。
   // 読めていないときに黙って死ぬと、原因の分からない無反応になるので出しておく。
+  //
+  // この確認は「読み込み済み」の印より先に置く。順序が逆だと、post-url.js だけ
+  // 入らなかった回に「この版は読み込み済み」だけが残り、あとから post-url.js を
+  // 入れて入れ直しても先頭で return して、二度と初期化できなくなる。
   if (typeof PostCloakUrl === 'undefined') {
     console.error('[PostCloak] post-url.js が読み込まれていません');
     return;
   }
+
+  window.__postCloakLoaded = VERSION;
 
   /* ---------- 0. 定数 ---------- */
 
