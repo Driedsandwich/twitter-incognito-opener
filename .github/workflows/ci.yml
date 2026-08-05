@@ -13,25 +13,33 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # action は full commit SHA で固定する。major タグ（@v7 など）は動かせるので、
+      # 同じ参照が別の中身を指すようになりうる。行末のコメントが対応するタグ。
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # このワークフローは push しないので、認証情報を残さない。
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
+          # 依存パッケージが無いのでキャッシュも要らない。
+          package-manager-cache: false
 
       # 依存パッケージは無いので install は要らない
-      - name: JavaScript の構文検査
-        run: |
-          node --check post-url.js
-          node --check background.js
-          node --check content.js
-
-      - name: JSON の構文検査
-        run: |
-          python3 -m json.tool manifest.json > /dev/null
-          python3 -m json.tool _locales/en/messages.json > /dev/null
-          python3 -m json.tool _locales/ja/messages.json > /dev/null
-          python3 -m json.tool package.json > /dev/null
+      - name: 構文検査（JavaScript と JSON）
+        run: npm run check
 
       - name: テスト
         run: npm test
+
+      - name: パッケージ手順の構文検査
+        run: bash -n tools/package.sh
+
+      # clean checkout なので、通常の（提出用の）モードで通るはず。
+      # ここが落ちるときは、提出物の一覧と実体が食い違っている。
+      - name: 提出用 ZIP を作って中身を検証する
+        run: npm run package
+
+      - name: 空白の混入検査
+        run: git diff --check
