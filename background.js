@@ -2,6 +2,10 @@
 // 右クリックメニューを出し、content script が割り出したポストURLを
 // シークレットウィンドウで開く。URL の割り出しは content script 側の担当。
 
+// URL の判定は content script と共有する。service worker は module 指定を
+// していない古典形なので、importScripts で読める。
+importScripts('post-url.js');
+
 const MENU_ID = 'open-in-incognito';
 
 // メニューを出す画面。ここを絞らないと、無関係な全サイトの右クリックに項目が出る。
@@ -16,8 +20,6 @@ const TARGET_PAGES = [
   'https://twitter.com/*',
   'https://www.twitter.com/*',
 ];
-
-const ALLOWED_HOST = /^(www\.)?(x|twitter)\.com$/i;
 
 /* ---------- メニューの登録 ---------- */
 
@@ -58,7 +60,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   // リンクの上で右クリックした場合、それがポストのURLならそのまま使う。
   // ポスト以外のリンク（プロフィール、外部サイト）は使わず、
   // content script に「そのリンクが載っているポスト」を割り出させる。
-  const direct = toPostUrl(info.linkUrl);
+  const direct = PostCloakUrl.toPostUrl(info.linkUrl);
   if (direct) {
     openIncognito(direct, tabId, frameId);
     return;
@@ -85,7 +87,9 @@ async function reviveContentScript(tabId, frameId) {
   try {
     await chrome.scripting.executeScript({
       target: { tabId, frameIds: [frameId] },
-      files: ['content.js'],
+      // manifest の content_scripts と同じ順序で入れる。content.js は
+      // post-url.js が先に入っていることを前提にしている。
+      files: ['post-url.js', 'content.js'],
     });
     await chrome.tabs.sendMessage(
       tabId,
@@ -93,7 +97,7 @@ async function reviveContentScript(tabId, frameId) {
       { frameId }
     );
   } catch (e) {
-    console.warn('[tio] content script を入れ直せませんでした:', e);
+    console.warn('[PostCloak] content script を入れ直せませんでした:', e);
   }
 }
 
@@ -101,7 +105,7 @@ async function reviveContentScript(tabId, frameId) {
 
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (!msg || msg.type !== 'open') return false;
-  const url = toPostUrl(msg.url);
+  const url = PostCloakUrl.toPostUrl(msg.url);
   // 送り主のタブ以外からのメッセージは扱わない。
   if (url && sender.tab && typeof sender.tab.id === 'number') {
     openIncognito(url, sender.tab.id, sender.frameId);
@@ -116,13 +120,14 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
 // 開けないのは、シークレットモードが組織のポリシー等で無効化されている場合。
 // 旧実装は失敗を握り潰していたので、ここでは必ず利用者へ返す。
 //
-// 開くのは毎回あたらしいウィンドウ。既にあるシークレットウィンドウへタブを足すには
-// そのウィンドウを列挙する必要があり、それには「シークレット モードでの実行を許可」が要る。
+// 開くのは常にあたらしいウィンドウ。既存のシークレットウィンドウへタブを足す実装は
+// 持っていないので、「シークレット モードでの実行を許可」を利用者がオンにしても
+// この挙動は変わらない（オンにすると増えるのは拡張の権限だけ）。文書もそう書くこと。
 async function openIncognito(url, tabId, frameId) {
   try {
     await chrome.windows.create({ url, incognito: true });
   } catch (e) {
-    console.error('[tio] シークレットウィンドウを開けませんでした:', e);
+    console.error('[PostCloak] シークレットウィンドウを開けませんでした:', e);
     tell(tabId, frameId, chrome.i18n.getMessage('errorIncognitoUnavailable'));
   }
 }
@@ -130,28 +135,4 @@ async function openIncognito(url, tabId, frameId) {
 function tell(tabId, frameId, text) {
   const opts = typeof frameId === 'number' ? { frameId } : undefined;
   chrome.tabs.sendMessage(tabId, { type: 'notify', text }, opts).catch(() => {});
-}
-
-/* ---------- 共通 ---------- */
-
-// 受け取った URL が x.com / twitter.com のポストURLであることを必ず確かめる。
-// content script から来た値も、メニューの info.linkUrl も、ここを通してから開く。
-function toPostUrl(href) {
-  if (!href || !href.includes('/status/')) return null;
-  let url;
-  try {
-    url = new URL(href);
-  } catch (e) {
-    return null;
-  }
-  if (url.protocol !== 'https:') return null;
-  if (!ALLOWED_HOST.test(url.hostname)) return null;
-  url.pathname = url.pathname.replace(
-    /\/(photo|video|analytics|likes|retweets|quotes)(\/\d+)?\/?$/,
-    ''
-  );
-  // ポストのURLは必ず /status/<数字> の形をしている。
-  if (!/\/status\/\d+/.test(url.pathname)) return null;
-  url.hash = '';
-  return url.href;
 }

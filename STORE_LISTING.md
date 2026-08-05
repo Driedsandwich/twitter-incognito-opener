@@ -1,46 +1,17 @@
-# PostCloak ストア入稿の記録
+# ストア掲載情報の正本
 
-作成 2026-08-03 / 対象 v1.6.0 / **2026-08-04 公開済み**
+Chrome ウェブストアの掲載ページに載せている文面と設定を、リポジトリ側にも置いたものです。
+**ストアの掲載内容とこのファイルが食い違ったら、こちらを直してから掲載を直します。**
 
-> **これは終わった入稿の記録です。** §0〜§6 には、実際に貼った内容と踏んだ手順をそのまま残してあります。次に更新するときの雛形として使えます（→ §7「次に更新するとき」）。
->
-> **なぜ人間の手作業だったのか**: Chrome は拡張機能によるウェブストアとデベロッパーダッシュボードの操作をブラウザ側で禁じている（`The extensions gallery cannot be scripted.`）。Claude in Chrome も拡張機能なので、読み取りすらできない。回避手段はなく、次に更新するときも人間の操作になります。
->
-> フォームの項目順に並べてあります。入稿中に開く短い版は `~/dev/postcloak-store-assets/SUBMIT.html`（貼る枠がクリックで全選択できる）。同内容の `SUBMIT.md` も同じ場所にあります。このファイルは根拠まで含む詳細版で、「なぜこの文面なのか」は付録にまとめてあります。
+掲載ページ: https://chromewebstore.google.com/detail/pekgcaiokjokphdlmnkldmclffkeepnh
 
----
-
-## 0. 使うファイル（すべて `~/dev/postcloak-store-assets/` と `~/dev/`）
-
-| ファイル | 用途 |
-|---|---|
-| `~/dev/postcloak-1.6.0.zip` | パッケージ（展開して main と差分ゼロを確認済み） |
-| `store-icon-128.png` | **ショップ アイコン（128×128）**。ZIP を上げても自動では入らないので個別にドロップする |
-| `screenshots/01-context-menu-1280x800.png` | スクリーンショット1枚目 |
-| `screenshots/02-incognito-result-1280x800.png` | 2枚目 |
-| `screenshots/03-how-to-use-1280x800.png` | 3枚目 |
-| `screenshots/04-scope-and-permissions-1280x800.png` | 4枚目 |
-| `promo-tile-440x280.png` | プロモーション タイル（小）。**任意** |
-
-Finder で開く: `open ~/dev/postcloak-store-assets`
+> ウェブストアのダッシュボードは、ブラウザ拡張から操作できません（Chrome 側が
+> `The extensions gallery cannot be scripted.` で拒否します）。掲載内容の反映は
+> かならず手作業になります。
 
 ---
 
-## 1. パッケージのアップロード
-
-ダッシュボードでアイテムを開く →「パッケージ」→「新しいパッケージをアップロード」で `~/dev/postcloak-1.6.0.zip` を選びました。
-
-> 2026-08-03 の入稿時、アイテムはまだ 2025年6月作成のドラフト **「Twitter Incognito Opener」**（v1.3.1）としてダッシュボードに並んでいました。次からは **`PostCloak — x.comのポストをシークレットウィンドウで開く`** です。
->
-> アップロードすると、名前と説明は ZIP 内の `manifest.json` の値に置き換わります。名前欄を手で入力する必要はありません。表示が古い名前のままなら、パッケージが反映されていないということです。
-
----
-
-## 2. ストアの掲載情報
-
-### 説明（詳細）
-
-下の枠をそのままコピーして貼る。
+## 1. 説明（詳細）— 日本語
 
 ```
 Chrome の「シークレット ウィンドウで開く」は、リンクの右クリックメニューの項目です。
@@ -63,18 +34,18 @@ x.com / www.x.com / twitter.com / www.twitter.com のページ上だけです。
 pro.x.com（X Pro）は画面の作りが別で、対象外です。
 
 ■ 知っておいていただきたいこと
-・シークレットウィンドウは毎回あたらしく開きます。1枚にまとめたい場合は
-　chrome://extensions でこの拡張の「シークレット モードでの実行を許可」を
-　オンにしてください
+・シークレットウィンドウは毎回あたらしく開きます。既にあるシークレットウィンドウに
+　タブを足す機能はありません
 ・シークレットウィンドウは何枚開いても中身を共有し、最後の1枚を閉じるまで
 　セッションが残ります
 ・リンクの上で Shift+Alt クリックしたときは、この拡張は何もしません。
 　プロフィールや外部記事への移動を奪わないためです
 
 ■ プライバシー
-外部への送信は一切ありません。外部サーバーとの通信を行いません。
+拡張自身が外部のサーバーへ通信することはありません。
 右クリックした場所の周辺の DOM を読みますが、ポストのURLを1つ取り出すためだけに使い、
 端末の外へ出しません。永続的な保存もしません。
+（ポストを開いたときは、Chrome がそのURLへ通常どおりページを読み込みます）
 要求する権限は contextMenus と scripting の2つで、閲覧履歴を読む権限は要求しません。
 
 ■ 免責
@@ -84,28 +55,67 @@ X および Twitter は X Corp. の商標です。
 ソースコードは MIT ライセンスで公開しています。不具合の報告は Issue でお願いします。
 ```
 
-### そのほかの欄
+## 2. 説明（詳細）— 英語
+
+> 掲載ページに英語ロケールを足すときの正本です。**拡張そのものの名前と短い説明（`manifest.json` の `name` / `description`）は、どのロケールでも日本語のままにしています**（`_locales/en/messages.json` の `extName` / `extDescription` を日本語文面に揃えてあります）。`default_locale` が `en` なので、ここを英語にすると公開中の掲載名が変わってしまうためです。メニューや通知など製品内の文言は、通常どおり英語と日本語で分かれます。
+
+```
+Chrome's "Open link in Incognito window" is an item in the link context menu.
+It only appears when there is an <a> element under the cursor.
+
+On the x.com timeline, the body of a post is not an <a> — it is a <div> with a
+click handler. So right-clicking the text of a post never offers that option.
+
+PostCloak works out the post's URL from those non-link areas and opens it.
+
+■ How to use
+- Shift+Alt click anywhere on a post
+- Or right-click a post and choose "Open this post in an Incognito window"
+
+Both do the same thing. Nothing happens outside a post (sidebar, margins).
+
+■ Where it runs
+Only on pages of x.com / www.x.com / twitter.com / www.twitter.com.
+It does not run on posts embedded in third-party sites, and no menu item appears there.
+pro.x.com (X Pro) has a different layout and is out of scope.
+
+■ Things worth knowing
+- A new Incognito window opens every time. There is no feature that adds a tab to an
+  Incognito window you already have open.
+- Incognito windows share one session; it lasts until you close the last one.
+- Shift+Alt clicking on a link does nothing, so that links to profiles or external
+  articles keep working normally.
+
+■ Privacy
+The extension itself makes no network requests to any server.
+It reads the DOM around the point you clicked, solely to extract one post URL, and
+nothing leaves your device. Nothing is stored persistently.
+(When the post opens, Chrome loads that URL as an ordinary page navigation.)
+It requests two permissions, contextMenus and scripting, and does not request
+permission to read your browsing history.
+
+■ Disclaimer
+This is an independent, unofficial tool. It is not affiliated with, endorsed by, or
+sponsored by X Corp. X and Twitter are trademarks of X Corp.
+
+The source code is published under the MIT license. Please report problems as an Issue.
+```
+
+## 3. 掲載ページのそのほかの欄
 
 | 欄 | 値 |
 |---|---|
-| **ショップ アイコン**（必須） | **`store-icon-128.png`** をドロップ。128×128 |
-| カテゴリ | **仕事効率化**（Productivity） |
-| 言語 | **日本語** |
-| スクリーンショット | 4枚を **01 → 02 → 03 → 04 の順**でアップロード |
-| プロモーション タイル（小・440×280） | `promo-tile-440x280.png`（**任意**。空でも提出できる） |
-| マーキー プロモーション タイル（1400×560） | **未作成。任意なので空でよい** |
-
-### 追加フィールド
-
-| 欄 | 値 |
-|---|---|
-| 公式 URL | **「なし」のままでよい**（確認済みドメインを持つ場合の欄） |
+| ショップ アイコン（必須） | 128×128。**パッケージの中のアイコンとは別枠**で、ZIP を上げても自動では入らない |
+| カテゴリ | 仕事効率化（Productivity） |
+| スクリーンショット | 1280×800 を4枚（メニュー / 開いた結果 / 使い方 / 動作範囲と権限） |
+| プロモーション タイル（小・440×280） | 任意 |
+| マーキー プロモーション タイル（1400×560） | 任意（未作成） |
+| 公式 URL | なし（確認済みドメインを持つ場合の欄） |
 | ホームページ URL | `https://github.com/Driedsandwich/postcloak` |
 | サポート URL | `https://github.com/Driedsandwich/postcloak/issues` |
+| プライバシーポリシー URL | `https://github.com/Driedsandwich/postcloak/blob/main/PRIVACY.md` |
 
----
-
-## 3. プライバシーの設定
+## 4. 単一目的と権限の正当化
 
 ### 単一目的
 
@@ -113,19 +123,24 @@ X および Twitter は X Corp. の商標です。
 x.com のポストを、そのポストのURLでシークレットウィンドウに開くこと。これが本拡張の唯一の機能です。
 ```
 
-### `contextMenus` 権限の正当化
+```
+To open a post on x.com in an Incognito window, using that post's own URL.
+That is the extension's only function.
+```
+
+### `contextMenus`
 
 ```
 右クリックメニューに項目を1つ追加するためだけに使用します。項目を出す範囲は x.com / www.x.com / twitter.com / www.twitter.com のページに限定しており（documentUrlPatterns）、他のサイトでは表示されません。
 ```
 
-### `scripting` 権限の正当化
+### `scripting`
 
 ```
 拡張のインストールまたは更新より前から開かれていたタブへ、content script を入れ直すためだけに使用します。Chrome は既存のタブへ遡って content script を注入しないため、これが無いとインストール直後の右クリックが無反応になります。コード上は background.js の reviveContentScript 関数の1箇所からのみ呼び出しており、他の用途には使用しません。
 ```
 
-### ホスト権限（`https://x.com/*` ほか3件）の正当化
+### ホスト権限（`https://x.com/*` ほか3件）
 
 ```
 ポストのURLを割り出す処理と、上記 scripting による content script の入れ直しを、x.com / www.x.com / twitter.com / www.twitter.com の4つのドメインに限定するために宣言しています。<all_urls> や広域のパターンは使用していません。
@@ -133,9 +148,9 @@ x.com のポストを、そのポストのURLでシークレットウィンド�
 
 ### リモートコードの使用
 
-**「いいえ」** を選ぶ。外部スクリプトの読み込み、`eval()` での遠隔文字列の実行、CDN からのライブラリ取得のいずれも行っていない。
+**「いいえ」**。外部スクリプトの読み込み、`eval()` による遠隔文字列の実行、CDN からのライブラリ取得のいずれも行っていません。
 
-### データ収集の申告
+## 5. データ収集の申告
 
 | 項目 | 申告 |
 |---|---|
@@ -147,51 +162,20 @@ x.com のポストを、そのポストのURLでシークレットウィンド�
 | 位置情報 | 収集しない |
 | ウェブ閲覧履歴 | 収集しない |
 | ユーザーの操作 | 収集しない |
-| **ウェブサイトのコンテンツ** | **← ここだけ判断が要る。次節を読んでから決める** |
+| ウェブサイトのコンテンツ | 収集しない |
 
-### 限定利用（Limited Use）
+限定利用（Limited Use）にはチェックを入れています。開示した単一目的を超えるデータの利用・転送を行っておらず、そもそも外部への転送がありません。
 
-**チェックを入れる。** 開示した単一目的を超えるデータの利用・転送を行っておらず、そもそも外部への転送が一切ない。
+「ウェブサイトのコンテンツ」を「収集しない」としている根拠は次のとおりです。**これは解釈であって、ウェブストアによる保証ではありません。**
 
-### プライバシーポリシー URL
+- 事実として、本拡張は右クリックまたは Shift+Alt クリックした場所の周辺の DOM を読み取ります。読み取るのはポストのURLを1つ取り出すためだけで、送信も永続保存もしません（直前の1件をそのタブのメモリに置き、使ったら捨て、60秒で失効します）
+- ウェブストアの「収集」は、利用者のデバイスから**転送すること**を指します。転送していないので「収集しない」に当たると解釈しています
 
-```
-https://github.com/Driedsandwich/postcloak/blob/main/PRIVACY.md
-```
+申告するときは、フォームに添えられている「収集」の定義文を読んでから決めてください。過小申告は拒否事由になりますが、過大申告は拒否事由になりません。
 
-（2026-08-03 到達確認済み・HTTP 200）
+## 6. 審査用のテスト手順（Provide test instructions 欄）
 
----
-
-## 4. 判断が要る1点 —「ウェブサイトのコンテンツ」
-
-**私は「収集しない」だと解釈していますが、これは解釈であって保証ではありません。**
-
-- 事実: 本拡張は、右クリックまたは Shift+Alt クリックした場所の**周辺の DOM を読み取る**。読み取るのはポストのURLを1つ取り出すためだけで、送信も永続保存もしない（直前の1件をそのタブのメモリに置き、使ったら捨て、60秒で失効する）
-- 解釈: Chrome ウェブストアの「収集」は「利用者のデバイスから転送すること」を指す。転送していないので「収集しない」に当たる
-
-**お願い**: この項目にはフォーム上に定義文（「収集」の意味）が添えられています。**それを実際に読んでから決めてください。** 私はそのページを読めません。
-
-**迷ったら「収集する」を選ぶほうが安全です。** 過小申告は拒否事由になりますが、過大申告は拒否事由になりません。「収集する」を選んだ場合は、用途として「単一目的（ポストをシークレットウィンドウで開くこと）のためだけに端末内で処理し、外部へ送信しない」と書けば整合します。
-
----
-
-## 5. 開発者アカウントの確認（Account ページ）
-
-RepoGloss を提出した時点で済んでいた4項目です。提出が受理され審査も通ったので、いずれも満たされていたことになります。
-
-- [x] 2段階認証が有効
-- [x] 公開者名（Publisher name）が設定済み
-- [x] 連絡先メールアドレスが確認（verify）済み
-- [x] Trader / Non-Trader の申告が済んでいる
-
----
-
-## 6. 提出
-
-### テスト手順（Provide test instructions 欄）
-
-x.com のタイムラインはログインしないと表示されません。**資格情報は渡さず**、ログアウト状態でも表示される公開プロフィールページを指定します。下の英文をそのまま貼る。
+x.com のタイムラインはログインしないと表示されません。資格情報は渡さず、ログアウト状態でも表示される公開プロフィールページを指定しています。
 
 ```
 This extension only works on x.com / twitter.com.
@@ -207,212 +191,30 @@ This extension only works on x.com / twitter.com.
    → A short notice appears at the bottom of the page; no window opens.
 
 The menu item does not appear on any site other than x.com / twitter.com.
-No network requests are made to any server.
+No network requests are made to any server by the extension itself.
 ```
 
-### 「審査に提出」を押す前の最終チェック（2026-08-03・全項目クリアして提出）
+## 7. 更新を出すときの手順
 
-- [x] パッケージのバージョンが **1.6.0** になっている
-- [x] 名前が **PostCloak —** で始まっている（古い名前のままならパッケージが未反映）
-- [x] **ショップ アイコンが入っている**（ZIP とは別枠）
-- [x] スクリーンショットが4枚入っている
-- [x] プライバシーポリシー URL が入っている
-- [x] 限定利用にチェックが入っている
-- [x] 単一目的と、`contextMenus` / `scripting` / ホスト権限の正当化が入力されている
-- [x] テスト手順が入力されている
-- [x] スクリーンショット1枚目のアイコンが新しい意匠（オレンジの吹き出し）になっている
+1. `manifest.json` の `version` を上げる（**同一以下のバージョンは再アップロードを拒否される**）。`package.json` の `version` も同じ値にする（`npm test` が食い違いを検出します）
+2. `npm test` と `npm run check` を通す
+3. [SMOKE.md](./SMOKE.md) の手動確認を、実機の Chrome で行い、表を埋める
+4. `npm run package` で `dist/` に ZIP を作る（コミット後に作ること。未コミットの変更があると警告が出ます）
+5. ダッシュボードでパッケージを差し替える。**ショップ アイコンはパッケージとは別枠**なので、意匠を変えたときは個別に上げ直す
+6. 掲載文を変えたときは、このファイルの §1 / §2 と、実際の掲載ページの両方を同じ内容にする
+7. データ収集の申告（§5）を維持する
+8. 自動公開を ON にしておくと、審査を通った時点でそのまま公開される（OFF にすると通過から30日以内の手動公開が必要で、過ぎるとドラフトへ戻る）
 
-> **自動公開のチェックについて**: 審査通過後に自動で公開するかを選べます。今回は **ON** にしたため、通過がそのまま公開になりました。外した場合は **通過から30日以内に手動で公開しないとドラフトへ戻り、再審査が必要**になります。
-
-実際にかかった時間は §7 にあります。
+却下されたときは、拡張に紐づく公開者メールアドレスへ通知が届きます。通過したときは通知されず、掲載ページの表示が変わることで分かります。
 
 ---
 
-## 7. 提出後
+# 付録: なぜこの文面なのか
 
-### 提出の記録
+**単一目的を1文に固定した理由** — 「追跡防止」「複数アカウントの切り替え」などの副次的な効能を足すと、審査で別目的の抱き合わせと読まれる余地を自分で作ることになります。単一目的は説明文ではなく実装と権限で判定されるため、権限を `contextMenus` と `scripting` の2つに絞ったこと自体が最大の主張になります。
 
-| | |
-|---|---|
-| 提出日 | **2026-08-03** |
-| 提出バージョン | **1.6.0** |
-| 自動公開の設定 | **ON**（通過したらそのまま公開される。手動公開の30日期限は発生しない） |
-| データ収集「ウェブサイトのコンテンツ」の申告 | **収集しない**（次回の更新でも同じ申告を維持すること） |
+**効能表現を採らなかった理由** — 「ログイン画面をスキップ」「追跡されずに」といった書き方は、ウェブストアの「ログイン制限の迂回を助けてはならない」に正面から抵触します。一方で削り過ぎは Misleading Metadata 側のリスクになるため、**機構の記述**（何を押すと何が起きるか）に統一しました。「セッション分離」「ログイン中のアカウントと切り離して読む」も効能表現にあたるので採っていません。
 
-### 待ち方（このときの記録）— 何もしなくてよかった
-
-**自動公開が ON だったので、通過がそのまま公開になりました。** ダッシュボードを定期的に見る必要はありません。次に更新するときも同じです。
-
-| いつ | 何が起きるか |
-|---|---|
-| 却下されたとき | **メールが届きます。** 公式に「The publisher email address associated with the extension will be sent an email stating that the submission was rejected.」と明記 |
-| 通過したとき | そのまま公開される。掲載URLが生きたことで気づけます |
-| 3週間経っても動かないとき | デベロッパーサポートへ問い合わせてよい（公式に明記）。このときの目安は 2026-08-24 に置いていました |
-
-出典: [review-process](https://developer.chrome.com/docs/webstore/review-process)
-
-### 審査の結果 — **公開されました（2026-08-04）**
-
-| | |
-|---|---|
-| 掲載URL | https://chromewebstore.google.com/detail/pekgcaiokjokphdlmnkldmclffkeepnh |
-| 拡張機能ID | `pekgcaiokjokphdlmnkldmclffkeepnh` |
-| 所要 | 提出の翌日。公式の目安は「多くは数日、最大で数週間」で、2026年4月からの長期化の警告は影響しませんでした |
-| 反映済み | README のインストール節・GitHub の Website 欄 |
-
-日付はストアの掲載ページの「更新日」表示に合わせています（2026-08-04 に取得・実在しない拡張IDを同じ手順に通す対照つき）。
-
-同時に出した **RepoGloss は前日の 08-03 に公開**されています（`ihkkhkleamggokepaelapoiabgmpljnn`）。**同じ日に出しても公開日は揃いません。**
-
-> **掲載ページに出る連絡先メールは `driedsandwichgit@gmail.com` です**（`sts0516k@gmail.com` ではありません）。ストアの掲載ページは開発者の連絡先メールを公開する仕様で、隠すことはできません。差し替えるしかない欄なので、いま出ているアドレスで問題ないかだけ確認しておいてください。
-
-### 次に更新するとき
-
-- `manifest.json` の `version` を **1.6.0 より上**にする（同一以下のバージョンは再アップロードを拒否される）
-- データ収集「ウェブサイトのコンテンツ」は **「収集しない」** のまま維持する
-- 手順は §0〜§6 がそのまま使える。ZIP だけ作り直す
-
----
----
-
-# 付録
-
-ここから先は入稿中に読む必要はありません。「なぜこの文面なのか」を後から確かめるための記録です。
-
-## 付録A. 実機確認の記録（2026-08-03）
-
-デベロッパーモードで読み込んだ実物に対して測定したものです。提出前に片付ける6項目はすべて済んでいます。
-
-| 何を | どう確かめたか | 結果 |
-|---|---|---|
-| メニューが x.com で出る | ポスト本文（リンクでない位置）を右クリックし、画面を撮影 | 「このポストをシークレットウィンドウで開く（Shift+Alt クリック）」が表示された。**同じメニューに Chrome 標準の「シークレット ウィンドウで開く」は無く**、この拡張の存在理由が実機で裏付けられた |
-| メニューが他サイトでは出ない | `example.com` で同じ操作 | 他の拡張の項目は並ぶが、**この拡張の項目だけが無い** |
-| Shift+Alt クリック（タイムライン） | ホームタイムラインのポスト本文を Shift+Alt クリック | **期待どおりのポストURLでシークレットウィンドウが開いた。** タイムライン側は遷移せず残った（二重動作なし） |
-| シークレット許可トグル無しで開くか | 上と同じ操作 | **開いた。** Minimum Functionality の懸念は解消 |
-| ログアウト状態の表示 | 開いたシークレットウィンドウを撮影 | **ポストの本文・投稿者・認証バッジ・添付動画まで全て表示された。ログイン壁は出ない** |
-
-> **1点だけ前提が残ります**: 「シークレット モードでの実行を許可」がオフであることを `chrome://extensions` の画面で目視していません（ブラウザ自動化が到達できないため）。既定はオフで、読み込み後に別途オンにしていなければオフのままです。
-
-## 付録B. なぜこの文面なのか
-
-**単一目的を1文に固定した理由** — 「追跡防止」「複数アカウントの切り替え」などの副次的な効能を足すと、審査官が別目的の抱き合わせと読む余地を自分で作ることになります。単一目的は説明文ではなく実装と権限で判定されるため、権限を `contextMenus` と `scripting` の2つに絞ったこと自体が最大の主張になります。
-
-**効能表現を採らなかった理由** — 旧 README にあった「ログイン画面をスキップ」「追跡されずに」は、CWS の「ログイン制限の迂回を助けてはならない」に正面から抵触します。一方で削り過ぎは Misleading Metadata 側のリスクになるため、**機構の記述**（何を押すと何が起きるか）に統一しました。「セッション分離」「ログイン中のアカウントと切り離して読む」も効能表現にあたるので採っていません。
-
-**プライバシーポリシーが必須である理由** — CWS の "handle" は「収集・送信・**使用**・共有」の4つを指し、公式 User Data FAQ が「ローカル処理だけでも開示が必要」と明記しています。「外部送信ゼロだから記入不要」とは主張できません。
+**プライバシーポリシーが必須である理由** — ウェブストアの "handle" は「収集・送信・**使用**・共有」の4つを指し、公式の User Data FAQ が「ローカル処理だけでも開示が必要」と明記しています。「外部送信ゼロだから記入不要」とは主張できません。
 
 **2026-08-01 施行のポリシー改定** — Limited Use と開示要件が厳格化されました。根拠: https://developer.chrome.com/blog/cws-policy-updates-2026
-
-## 付録C. スクリーンショットの内容と写り込みの処理
-
-| # | ファイル | 何を写しているか | 種類 |
-|---|---|---|---|
-| 1 | `01-context-menu-1280x800.png` | ポスト本文を右クリックし、メニューに項目が出ている | 実写 |
-| 2 | `02-incognito-result-1280x800.png` | シークレットウィンドウで同じポストが開いている | 実写 |
-| 3 | `03-how-to-use-1280x800.png` | 2つの開き方の説明 | HTML で作ったカード |
-| 4 | `04-scope-and-permissions-1280x800.png` | 動作範囲と権限の説明 | HTML で作ったカード |
-
-- 投稿は公式アカウント **@NASA / @NASALangley** のものだけを使いました
-- **カット1では、この拡張とは無関係な他の拡張機能のメニュー項目にモザイクをかけています**（インストール済み拡張の一覧が読み取れてしまうため）。Chrome 標準の項目と PostCloak の項目はそのまま残しています
-- ブラウザのタブ一覧・ブックマーク・ツールバーは写さないよう、ページ表示領域だけを切り出しています
-- 未加工の素材は `screenshots/_raw-*.png` に残してあります
-
-**1枚目はアイコン差し替え後（v1.6.0）に撮り直したもの**です。メニュー項目の左に新しいアイコン（オレンジの吹き出し）が写っています。撮影前に `chrome://extensions` で拡張を再読み込みしています（Chrome はアイコンをキャッシュしており、ディスク上のファイルを差し替えただけでは反映されないため）。差し替え前の版は `screenshots/_superseded/` に残してあります。
-
-## 付録D. アイコンの意匠について（**差し替え済み**）
-
-**2026-08-03、旧アイコン（濃いグレーの円＋フェドーラ帽＋サングラス＋南京錠）から、案A「幕」へ差し替えました。** v1.6.0 から新しい意匠です。
-
-### 新しいアイコン
-
-吹き出し（＝ポスト）に斜めの濃い帯（＝Cloak）をかけた形です。形は2つだけ、細部はありません。
-
-| | |
-|---|---|
-| 生成方法 | `~/dev/postcloak-store-assets/make_icon.py`（図形を数式で直接ラスタライズ） |
-| 色 | 地 `#f4a72c` / 帯 `#4a2c05` |
-| サイズ | 16 / 48 / 128 / 440 / 1024 を**それぞれ個別に描画**（縮小ではないので 16px でも輪郭が鈍らない） |
-| 背景 | 透過 |
-
-**色の決め方も実測しました。** 帯を濃紺（`#1d262f`）にすると暗い地で背景に溶けて輪郭が失われ、温かい白にすると明るい地でバブルに穴が空いたように見えました。地を必ずオレンジにしたのは、明るい地でも暗い地でも輪郭が残る唯一の色だからです。
-
-**16px の実測**: 実ファイルを8倍に拡大して確認したところ、吹き出しの形と帯がはっきり読めます。旧アイコンは同じ処理で「暗い円＋オレンジの染み」でした。比較画像は `~/dev/postcloak-store-assets/icon-candidates/`。
-
-旧素材は消さずに `~/dev/postcloak-store-assets/_retired/` へ退避してあります。
-
----
-
-以下は、差し替えを決めるまでに調べた記録です。2026-08-03 に一次資料と実例で調査しました（31体の並列調査＋敵対検証）。
-
-### 判断: 差し替える。ただし「審査に落ちるから」ではない
-
-**審査で落ちる可能性は、調べた範囲では低い**というのが実測の結論でした。それでも差し替えた理由は別にあります。
-
-### 規約側 — 効きうる条文は実在するが、名指しではない
-
-「アイコンが他社のブランドに似ている」ことを名指しで禁じる条項は、CWS のプログラムポリシー本体に**存在しません**。ただし商標登録の有無に依存せず適用されうる条文が3つあります。
-
-| 出典 | 逐語 |
-|---|---|
-| Program Policies / Impersonation & IP | *"Your Product and its user experience also must not mimic functionality or warnings from a user's operating system or browser."* |
-| Program Policies / Listing Requirements | misleading／inappropriate な metadata を禁止。**metadata の定義に icon が明示列挙**されている |
-| Google 商標ガイドライン | *"Don't copy or imitate Google's trade dress, including ... product icons, or imagery associated with Google."* |
-
-1つ目が最も直接効きます。**Chrome の UI 表現の模倣を名指しで禁じており、商標登録が無くても適用できる**書き方です。
-
-### 事例側 — 「アイコンが Chrome に似ている」で落ちた実例は見つからなかった
-
-- Chrome のシークレット意匠に似ていることを理由とした拒否・削除の公開事例は**見つかりませんでした**。ただし CWS の拒否理由は開発者ダッシュボードでしか通知されず公開されないため、**これは不存在の証明ではありません**（落ちた例は原理的に観測できない＝生存バイアス）
-- アイコンが理由に含まれた事例は2件見つかりましたが、いずれも Instagram/Meta の商標申立てで、名称類似との抱き合わせでした
-- Google が自発的に意匠類似を指摘した例は見つかりませんでした
-
-### 逆方向の証拠 — 同じ意匠が現行審査を通り続けている
-
-| 拡張 | ユーザー | 状況 |
-|---|---:|---|
-| Open incognito tab | 100,000 | **Featured バッジ付き・2026-07-27 更新**（＝先週、現行ポリシー下の審査を通過）。帽子＋丸メガネ |
-| Incognito This Tab for Google Chrome™ | 90,000 | 帽子＋サングラス＋コート襟。説明文に非提携の明示あり |
-| Incognito Blocker | 20,000 | **Featured**。Chrome のグリフに赤い禁止マークを重ねただけ |
-
-帽子＋メガネ系は計10件が公開中。ストア検索「incognito」の上位10件のうち7件に Featured バッジが付いています。公式文書は新規と更新を同一審査に付すと明記しています。
-
-**ただし Google は他の掲載物を先例として扱わないと明言しており、これは「通る見込みが高い」までで「規約上問題がない」の証明にはなりません。**
-
-### 商標登録の有無は確定できなかった
-
-- 米国 USPTO で Google LLC / Google Inc. / Alphabet 名義の全1,735件を調べ、「incognito」「hat/fedora」「disguise/spy」を含む標章は**0件**
-- Google 公表の商標一覧に Incognito の記載なし。**ただし同リストは自ら "Illustrative, non-exhaustive" と宣言**しており、不掲載は権利不存在を意味しません
-- EUIPO / JPO の図形商標検索は Vienna 分類の粒度が足りず（「帽子 AND 眼鏡」の複合で絞れない）、**判定できませんでした**
-
-### 現行アイコンに有利な事実も1つある
-
-Chromium が出荷している `incognito_circle_filled.icon` は**単色モノクロのネガ**（塗りつぶした円からグリフをくり抜いた形）です。PostCloak の現行意匠は**多色のポジ**（濃グレーの円の上に灰色の帽子と黒いサングラスを重ね、手前にオレンジの南京錠）で、色数・ポジ/ネガ・構成要素のいずれも一致しません。
-
-### 差し替えた3つの理由
-
-**1. 16px で読めない（実測）**
-
-実ファイル `icons/icon16.png` を8倍に拡大して確認したところ、帽子もサングラスも潰れて「暗い円＋オレンジの染み」にしか見えません。ツールバーと右クリックメニューに出るのはこのサイズです。これは規約とは無関係の、それ単独で成立する欠陥です。
-
-比較画像: `~/dev/postcloak-store-assets/icon-candidates/current-icon-at-16px.png`
-
-**2. 同じ意匠の拡張が10件ある**
-
-ストアの検索結果でもツールバーでも自分の製品を識別できません。なお**カテゴリ最大手の Go Incognito（20万ユーザー）は帽子を使わず仮面**で、他にも南京錠＋目・ウィンドウ＋矢印で上位を取っている例があります。帽子＋メガネはジャンル標準ではありません。
-
-**3. 灰色を回避するコストが、いま実質ゼロだった**
-
-未提出でユーザーが0人なので、原本を描き直して各サイズを書き出すだけで済みました。公開後に指摘されて差し替えるのとは、識別性の喪失という点で意味が違います。
-
-### 検討した4案（採用したのは A）
-
-| 案 | 意匠 | 16px での可読性 | 備考 |
-|---|---|---|---|
-| **A. 幕** | 吹き出し（オレンジ）に斜めの濃色の帯をかける | **読める** | 名前（Cloak）と直結。他に同型が無い |
-| B. もう一枚 | 吹き出しが2枚重なる（奥＝別の窓） | 読めるが弱い | 奥の1枚が低コントラストで潰れがち |
-| **C. 外へ出す** | 角丸の枠＋外向きの矢印 | **最も読める** | ただし「新しいウィンドウで開く」の汎用グリフで、独自性は低い |
-| D. 伏せる | 吹き出しの中を塗りつぶす | 読めるが弱い | 一般的なコメント／チャットのアイコンに見える |
-
-**A を採用しました。** 16px に耐え、名前と意味が一致し、既存10件のどれとも重なりません。
-
-画像: `~/dev/postcloak-store-assets/icon-candidates/`（`candidates-128px.png` / `candidates-at-16px.png` / `candidates-source.html`）

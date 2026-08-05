@@ -1,4 +1,16 @@
 {
+  "extName": {
+    "message": "PostCloak — x.comのポストをシークレットウィンドウで開く",
+    "description": "Extension name shown in Chrome and on the Chrome Web Store. Deliberately kept in Japanese: this is the default locale, so it is also the store listing name for every locale without its own translation, and the published listing name must not change. The in-product strings below are localized normally."
+  },
+  "extDescription": {
+    "message": "x.comのポスト本文を右クリック、またはShift+Altクリックすると、そのポストをシークレットウィンドウで開きます。X Corp.とは無関係の非公式ツールです。",
+    "description": "Extension description shown in Chrome and on the Chrome Web Store. Kept in Japanese for the same reason as extName."
+  },
+  "actionTitle": {
+    "message": "PostCloak",
+    "description": "Tooltip on the toolbar icon."
+  },
   "menuOpenInIncognito": {
     "message": "Open this post in an Incognito window (Shift+Alt click)",
     "description": "Context menu item shown on x.com pages."

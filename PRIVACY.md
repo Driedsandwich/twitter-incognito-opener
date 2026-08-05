@@ -1,6 +1,6 @@
 # プライバシーポリシー / Privacy Policy — PostCloak
 
-最終更新: 2026-08-03
+最終更新: 2026-08-05
 
 ---
 
@@ -8,7 +8,9 @@
 
 ### 1. 収集・送信するもの
 
-**ありません。** 本拡張は、利用者の情報を収集せず、外部へ送信せず、第三者へ提供しません。外部のサーバーとの通信を一切行いません（解析サービス・広告・外部APIのいずれも使っていません）。
+**ありません。** 本拡張は、利用者の情報を収集せず、外部へ送信せず、第三者へ提供しません。**拡張自身が外部のサーバーへ通信することはありません**（解析サービス・広告・外部API・独自サーバーのいずれも使っていません）。
+
+ただし1点だけ、通信そのものが起きないという意味ではありません。利用者がポストを開く操作をすると、**Chrome がそのポストのURLへ通常どおりページを読み込みます**。これは利用者がそのURLを自分でアドレスバーに入れて開いたときと同じ通信で、拡張が別のどこかへ情報を送っているわけではありません。
 
 ### 2. 読み取るもの
 
@@ -16,8 +18,9 @@
 
 - 読み取るのは、その場所が属するポストのURL（`https://x.com/<利用者名>/status/<番号>`）を1つ取り出すためだけです
 - 取り出しはすべて利用者の端末内（ブラウザの中）で完結します
-- ポストの本文、画像、利用者名、閲覧履歴は取り出しません
-- 読み取った内容を保存しません
+- ポストの本文、画像、閲覧履歴は取り出しません
+- **ただし、取り出すURLにはそのポストの投稿者にあたる部分（`/<利用者名>/`）が含まれます。** ポストのURLを1つ取り出す以上、この部分は避けられません。これを別に取り出したり、記録したりはしません
+- 読み取った内容を**永続的に**保存しません（一時的な保持については §3）
 
 読み取りの範囲は上記4つのドメインに限られます。他のサイトでは動作せず、右クリックメニューにも項目が出ません（`manifest.json` の `content_scripts.matches` と `contextMenus` の `documentUrlPatterns` が、いずれもこの4つに限定されているため）。
 
@@ -46,7 +49,9 @@
 
 ### 5. リモートコードの実行
 
-行いません。拡張に含まれるコードがすべてで、外部から取得して実行するコードはありません（Manifest V3 では技術的にも不可能です）。
+行いません。配布しているコードがすべてで、外部から取得して実行するコードはありません。`eval()` も、文字列から動的にコードを作って走らせる処理も使っていません。
+
+Manifest V3 のポリシーと既定の Content Security Policy はこれを禁じており、本拡張もそれに沿っています。ただし「Manifest V3 だから何をしても不可能」という意味ではありません。ここで述べているのは、**このリポジトリで配布しているコードに、その種の処理が無い**ということです。
 
 ### 6. 第三者への提供
 
@@ -66,7 +71,9 @@ GitHub リポジトリの Issue でお願いします。
 
 ### 1. What we collect or transmit
 
-**Nothing.** This extension does not collect, transmit, or share any user information. It makes no network requests to any external server (no analytics, no ads, no external APIs).
+**Nothing.** This extension does not collect, transmit, or share any user information. **The extension itself makes no network requests to any server** (no analytics, no ads, no external APIs, no server of our own).
+
+One clarification: that does not mean no traffic occurs at all. When you ask the extension to open a post, **Chrome loads that post's URL as a normal page navigation.** That is the same request you would make by typing the URL yourself; the extension is not sending anything anywhere else.
 
 ### 2. What we read
 
@@ -74,8 +81,9 @@ While a page on `x.com`, `www.x.com`, `twitter.com`, or `www.twitter.com` is ope
 
 - The sole purpose is to extract one post URL (`https://x.com/<user>/status/<id>`) for the post that point belongs to.
 - Extraction happens locally, inside the user's browser.
-- Post text, images, user names, and browsing history are not extracted.
-- Nothing that is read is stored.
+- Post text, images, and browsing history are not extracted.
+- **The URL does, however, contain a path segment identifying the post's author (`/<user>/`).** Extracting one post URL necessarily includes it. It is not extracted separately or recorded.
+- Nothing that is read is stored **persistently** (see §3 for the temporary hold).
 
 Reading is limited to the four domains above. The extension does not run on any other site, and its context menu item does not appear there.
 
@@ -104,7 +112,9 @@ No `tabs` (read your browsing history), no `storage`, no `<all_urls>`.
 
 ### 5. Remote code
 
-None. All code ships inside the extension; nothing is fetched and executed from elsewhere (Manifest V3 makes this impossible in any case).
+None. All code ships inside the extension; nothing is fetched and executed from elsewhere. There is no `eval()` and no code built dynamically from strings.
+
+Manifest V3's policy and its default Content Security Policy forbid this, and the extension complies. That is not a claim that Manifest V3 makes every such thing impossible — the statement here is that **the code distributed in this repository contains none of it.**
 
 ### 6. Sharing with third parties
 
