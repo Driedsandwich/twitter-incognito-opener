@@ -49,3 +49,32 @@ jobs:
 
       - name: 空白の混入検査
         run: git diff --check
+
+  # 利用者に Windows の Chrome が多いので、拡張そのもののテストは Windows でも走らせる。
+  #
+  # 提出物を作る手順のテスト（test/package-script.test.js）はここでは走らせない。
+  # Windows のランナーには zip と unzip が入っておらず（実測: runner-images の
+  # Windows2025 一覧に記載なし。7zip のみ）、入れると CI の依存が増える。
+  # 提出物を作るのは macOS の手元と上の Ubuntu ジョブだけなので、そこで守る。
+  #
+  # このジョブが守るのは「テストや実装が Unix 前提になっていないか」まで。
+  # AltGr・入力言語のホットキー・字体といった、利用者に効く Windows の挙動は
+  # ブラウザと OS の側なので、ここでは確かめられない（SMOKE.md の W1〜W5）。
+  test-windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: 構文検査（JavaScript と JSON）
+        run: npm run check
+
+      - name: テスト（拡張そのもの）
+        run: npm run test:unit
