@@ -14,13 +14,13 @@ Chrome ウェブストアのポリシーで「取り扱う（handle）」とは�
 
 | | 内容 |
 |---|---|
-| **端末内で取り扱うもの** | 右クリックまたは Shift+Alt クリックした位置の周辺の DOM と、そこから取り出したポストのURL1件。そのポストをシークレットウィンドウで開くためだけに使います |
-| **開発者・独自サーバー・第三者が受け取るもの** | **ありません。** 解析サービス・広告・外部APIのいずれも使っていません |
-| **拡張自身による外部への送信** | **ありません** |
+| **端末内で取り扱うもの** | 右クリックまたは Shift+Alt クリックした位置の周辺のハイパーリンクと、そこから取り出したポストのURL1件（投稿者のユーザー名にあたる部分を含みます）。そのポストをシークレットウィンドウで開くためだけに使います |
+| **開発者・独自サーバー・解析／広告サービスが受け取るもの** | **ありません。** 独自のバックエンドを持たず、解析サービス・広告・外部APIのいずれも使っていません |
+| **拡張自身が独自に行う通信** | **ありません。** 独自の通信・計測データの送信・別サーバーへの複製を行いません（下の行の、表示先へのページ読み込みとは別です） |
+| **表示先である X が受け取るもの** | **あります。** 利用者がポストを開く操作をすると、Chrome がそのポストのURLへ通常どおりページを読み込み、**X はその通常の要求を受け取ります**。これは利用者がそのURLを自分でアドレスバーに入れて開いたときと同じで、拡張が追加の情報を付け足すことはありません |
 | **永続的に保存するもの** | **ありません**（一時的な保持については §3） |
-| **Chrome による通常のページ読み込み** | **あります。** 利用者がポストを開く操作をすると、Chrome がそのポストのURLへ通常どおりページを読み込みます。これは利用者がそのURLを自分でアドレスバーに入れて開いたときと同じ通信で、拡張が別のどこかへ情報を送っているわけではありません |
 
-つまり「外部への送信がない」ことと「何も取り扱っていない」ことは別です。本拡張は**端末内でデータを使っています**。使っている内容と範囲を、以下の各節に書きます。
+つまり「開発者側へ送っていない」ことと「何も取り扱っていない」ことは別です。本拡張は**端末内でデータを使っています**。使っている内容と範囲を、以下の各節に書きます。
 
 ### 2. 読み取るもの
 
@@ -38,11 +38,15 @@ Chrome ウェブストアのポリシーで「取り扱う（handle）」とは�
 
 **永続的に保存するものはありません。**
 
-直前に割り出したポストのURLを1つだけ、そのタブのメモリ上に一時的に置きます。これは「右クリックした場所」と「メニューを押した瞬間」が別々の処理で起きるためです。この値は次の条件で消えます。
+直前に割り出したポストのURLを1つだけ、そのタブのメモリ上に一時的に置きます。これは「右クリックした場所」と「メニューを押した瞬間」が別々の処理で起きるためです。
 
-- 一度使ったら、その場で捨てる
-- 60秒経過したら失効する
-- タブを閉じる、またはページを移動したら消える
+この値の扱いは次のとおりです。
+
+- **60秒を超えた値は使いません**（問い合わせを受けた時点で経過時間を確かめます）
+- 置いたときに仕掛けたタイマーが、**60秒後以降の最初の実行機会に参照そのものを消します**
+- それより前でも、**一度使う／ポストの外を右クリックする／別の場所を右クリックし直す／ページを離れる／タブを閉じる**、のいずれかで捨てられます
+
+ブラウザのタイマーは、タブが停止していたり動作が抑制されていたりすると、ちょうど60秒後に動くとは限りません。そのため「必ず60.000秒で物理的に消える」とは書きません。**確実なのは、60秒を超えた値は使わないことと、タイマーが動いた時点で参照が消えることの2つです。**
 
 ディスクにも `chrome.storage` にも書きません。同期もしません。
 
@@ -65,7 +69,13 @@ Manifest V3 のポリシーと既定の Content Security Policy はこれを禁�
 
 ### 6. 第三者への提供
 
-行いません。共有する相手が存在しません。
+拡張が行う共有はありません。ただし「誰も何も受け取らない」という意味ではないので、3つに分けて書きます。
+
+| | |
+|---|---|
+| 拡張による共有・バックエンドへの転送 | **ありません** |
+| 表示先への通常のページ読み込み | **X のみ**。§1 に書いたとおり、利用者がポストを開くために必要な通信です |
+| 追加の情報・テレメトリの付加 | **ありません** |
 
 ### 7. Chrome ウェブストア ユーザーデータ ポリシーへの準拠
 
@@ -93,13 +103,13 @@ So this section separates what happens on your device from what leaves it.
 
 | | Detail |
 |---|---|
-| **Handled on your device** | The DOM around the point you right-clicked or Shift+Alt clicked, and the one post URL extracted from it. Used solely to open that post in an Incognito window |
-| **Received by the developer, our own server, or any third party** | **Nothing.** No analytics, no ads, no external APIs |
-| **Transmitted by the extension itself** | **Nothing** |
+| **Handled on your device** | The hyperlinks around the point you right-clicked or Shift+Alt clicked, and the one post URL extracted from it (its path contains the post author's username). Used solely to open that post in an Incognito window |
+| **Received by the developer, our own backend, or any analytics/ad service** | **Nothing.** There is no backend of ours, no analytics, no ads, no external APIs |
+| **Sent by the extension on its own** | **Nothing.** No requests of its own, no telemetry, no copies sent to any other server (this is separate from the navigation in the row below) |
+| **Received by X, the destination site** | **Yes.** When you ask the extension to open a post, Chrome loads that post's URL as a normal page navigation, and **X receives that ordinary request**. It is the same request you would make by typing the URL yourself; the extension adds nothing to it |
 | **Stored persistently** | **Nothing** (see §3 for the temporary hold) |
-| **Ordinary page loads performed by Chrome** | **Yes.** When you ask the extension to open a post, Chrome loads that post's URL as a normal page navigation. It is the same request you would make by typing the URL yourself; the extension is not sending anything anywhere else |
 
-In other words, "nothing is transmitted externally" is not the same as "nothing is handled." This extension **does use data on your device.** The sections below describe exactly what and how much.
+In other words, "nothing goes to the developer" is not the same as "nothing is handled." This extension **does use data on your device.** The sections below describe exactly what and how much.
 
 ### 2. What we read
 
@@ -117,11 +127,15 @@ Reading is limited to the four domains above. The extension does not run on any 
 
 **Nothing persistent.**
 
-One post URL — the one most recently resolved — is held in that tab's memory, because the right-click and the menu selection are two separate events. It is discarded when any of the following happens:
+One post URL — the one most recently resolved — is held in that tab's memory, because the right-click and the menu selection are two separate events.
 
-- it is used once (discarded immediately on read);
-- 60 seconds elapse;
-- the tab is closed or navigates away.
+How that value is handled:
+
+- **A value older than 60 seconds is never used** (the elapsed time is checked when the menu asks for it).
+- A timer set when the value is stored **clears the reference itself at the first opportunity at or after 60 seconds**.
+- Before that, it is discarded as soon as any of these happens: **it is used once; you right-click outside a post; you right-click somewhere else; you navigate away; you close the tab.**
+
+Browser timers do not necessarily run at exactly 60 seconds — a frozen or throttled tab can delay them. So this policy does not claim the value is physically erased at exactly 60.000 seconds. **What is guaranteed is that a value older than 60 seconds is never used, and that the reference is cleared once the timer runs.**
 
 Nothing is written to disk or to `chrome.storage`, and nothing is synced.
 
@@ -144,7 +158,13 @@ Manifest V3's policy and its default Content Security Policy forbid this, and th
 
 ### 6. Sharing with third parties
 
-None. There is no recipient.
+The extension does no sharing. That is not the same as "nobody receives anything," so here it is in three parts:
+
+| | |
+|---|---|
+| Sharing or backend transfer performed by the extension | **None** |
+| Ordinary page load to the destination | **X only** — the request needed to open the post you chose (see §1) |
+| Extra payload or telemetry added to it | **None** |
 
 ### 7. Compliance with the Chrome Web Store User Data Policy
 

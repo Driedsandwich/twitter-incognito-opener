@@ -1,0 +1,18 @@
+# ストア提出用の ZIP に入れるファイルの一覧。
+#
+# この一覧は tools/package.sh と test/package.test.js の両方が読みます。
+# 2箇所に同じ一覧を書くと片方だけ直る事故が起きるので、正本はここ1つだけです。
+#
+# ここに無いファイルは配布物へ入りません。この一覧そのものも入りません。
+# manifest.json が参照しているファイルがここに無ければ、テストが落ちます。
+
+manifest.json
+post-url.js
+background.js
+content.js
+_locales/en/messages.json
+_locales/ja/messages.json
+icons/icon16.png
+icons/icon48.png
+icons/icon128.png
+LICENSE

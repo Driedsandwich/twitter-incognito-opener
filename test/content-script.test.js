@@ -91,6 +91,11 @@ function harness() {
     i18n: { getMessage: (key) => `msg:${key}` },
   };
 
+  // 時計と timer は本物を使わない。60秒の消去を、待たずに確かめるため。
+  let clock = 1_000_000;
+  const timers = new Map();
+  let nextTimerId = 1;
+
   const sandbox = {
     document,
     chrome,
@@ -98,9 +103,15 @@ function harness() {
     location: { href: 'https://x.com/home' },
     Node: { TEXT_NODE: 3 },
     URL,
-    // 4秒後の消去をそのまま仕掛けるとテストが待たされるので、記録だけする
-    setTimeout: () => 0,
-    clearTimeout: () => {},
+    Date: { now: () => clock },
+    setTimeout: (fn, ms) => {
+      const id = nextTimerId++;
+      timers.set(id, { fn, ms });
+      return id;
+    },
+    clearTimeout: (id) => {
+      timers.delete(id);
+    },
   };
   sandbox.window = sandbox;
 
@@ -125,8 +136,35 @@ function harness() {
     loadContent() {
       vm.runInContext(CONTENT_SRC, ctx, { filename: 'content.js' });
     },
+    // 実ブラウザのイベントは isTrusted が true。既定でそれに合わせ、
+    // 合成イベントのテストだけ明示的に false を渡す。
+    // event に渡した値はそのまま載るので、getModifierState のような関数も
+    // 場面ごとに差し替えられる（AltGr の判定を撃つため）。
     fire(type, event) {
-      for (const l of domListeners) if (l.type === type) l.fn(event);
+      const e = { isTrusted: true, ...event };
+      for (const l of domListeners) if (l.type === type) l.fn(e);
+    },
+    // 時計を進める（timer は自動では動かない）
+    advance(ms) {
+      clock += ms;
+    },
+    // 仕掛かっている timer を動かす。ms を渡すとその遅延のものだけを動かす。
+    // 通知の帯（4000ms）と context の消去（60000ms）を撃ち分けるため。
+    fireTimers(ms) {
+      const target = [...timers.entries()].filter(([, t]) => ms === undefined || t.ms === ms);
+      for (const [id, t] of target) {
+        timers.delete(id);
+        t.fn();
+      }
+      return target.length;
+    },
+    pendingTimers(ms) {
+      return [...timers.values()].filter((t) => ms === undefined || t.ms === ms).length;
+    },
+    // 仕掛かっている timer の中身を取り出す（解除されたあとに遅れて動く場面を作るため）
+    captureTimer(ms) {
+      const found = [...timers.values()].find((t) => t.ms === ms);
+      return found ? found.fn : null;
     },
     ask(message) {
       let response;
@@ -254,6 +292,123 @@ test('ポストの外での Shift+Alt クリックは、何も送らず遷移も
   assert.equal(prevented, false, 'ポスト以外のクリックを飲み込んでいる');
 });
 
+// ---- 60秒で参照そのものが消えるか ----
+
+const TTL = 60_000;
+
+test('60秒未満なら1回だけ返し、二度目は返さない', () => {
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { target: h.postElement('/alice/status/123') });
+  h.advance(TTL - 1);
+  assert.equal(h.ask({ type: 'getContextTarget' }).url, 'https://x.com/alice/status/123');
+  assert.equal(h.ask({ type: 'getContextTarget' }).url, null);
+});
+
+test('時計が60秒を超えていれば返さない', () => {
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { target: h.postElement('/alice/status/123') });
+  h.advance(TTL + 1);
+  assert.equal(h.ask({ type: 'getContextTarget' }).url, null);
+});
+
+test('timer が動けば、時計が60秒未満でも参照は消えている', () => {
+  // 「経過時間の判定」ではなく「timer が実際に消したこと」を見る。
+  // 時計を進めないので、判定だけの実装ならここで URL が返ってしまう。
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { target: h.postElement('/alice/status/123') });
+  assert.equal(h.pendingTimers(TTL), 1, '消去用の timer が仕掛かっていない');
+  assert.equal(h.fireTimers(TTL), 1);
+  assert.equal(h.ask({ type: 'getContextTarget' }).url, null, 'timer が参照を消していない');
+});
+
+test('古い timer が、あとから保存した context を消さない', () => {
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { target: h.postElement('/alice/status/1') });
+  const staleTimer = h.captureTimer(TTL); // A の timer を控える
+  h.fire('contextmenu', { target: h.postElement('/bob/status/2') }); // B で上書き
+  staleTimer(); // 解除済みの A の timer が遅れて動いたとみなす
+  assert.equal(
+    h.ask({ type: 'getContextTarget' }).url,
+    'https://x.com/bob/status/2',
+    '古い timer が新しい context を消した'
+  );
+  // 値だけでなく handle も見る。古い callback が B の handle まで null にしていると、
+  // B を渡したあとの解除が空振りして、60秒後の callback だけが残る。
+  assert.equal(h.pendingTimers(TTL), 0, '古い timer が B の handle を失わせた');
+});
+
+test('新しい context の timer は、その context を消す', () => {
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { target: h.postElement('/alice/status/1') });
+  h.fire('contextmenu', { target: h.postElement('/bob/status/2') });
+  assert.equal(h.pendingTimers(TTL), 1, '古い timer が解除されていない');
+  h.fireTimers(TTL);
+  assert.equal(h.ask({ type: 'getContextTarget' }).url, null);
+});
+
+test('ポストの外を右クリックすると、前の context も timer も消える', () => {
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { target: h.postElement('/alice/status/1') });
+  h.fire('contextmenu', { target: h.strayElement() });
+  assert.equal(h.pendingTimers(TTL), 0, 'timer が残っている');
+  assert.equal(h.ask({ type: 'getContextTarget' }).url, null);
+});
+
+test('一度渡したら timer も解除される', () => {
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { target: h.postElement('/alice/status/1') });
+  h.ask({ type: 'getContextTarget' });
+  assert.equal(h.pendingTimers(TTL), 0, '渡したあとに timer が残っている');
+});
+
+// ---- ページ側が作った合成イベントを受け取らない ----
+
+test('合成の contextmenu は、context を作らず既存も上書きしない', () => {
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { target: h.postElement('/alice/status/1') });
+  // ページ側 script が作ったイベントのつもり
+  h.fire('contextmenu', { isTrusted: false, target: h.postElement('/evil/status/999') });
+  assert.equal(
+    h.ask({ type: 'getContextTarget' }).url,
+    'https://x.com/alice/status/1',
+    '合成イベントに上書きされた'
+  );
+});
+
+test('合成の contextmenu 単独では、context を作らない', () => {
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { isTrusted: false, target: h.postElement('/evil/status/999') });
+  assert.equal(h.pendingTimers(TTL), 0);
+  assert.equal(h.ask({ type: 'getContextTarget' }).url, null);
+});
+
+test('合成の Shift+Alt クリックは、何も送らず遷移も止めない', () => {
+  const h = harness();
+  h.load();
+  let prevented = false;
+  h.fire('click', {
+    isTrusted: false,
+    shiftKey: true,
+    altKey: true,
+    target: h.postElement('/alice/status/123'),
+    preventDefault() {
+      prevented = true;
+    },
+    stopPropagation() {},
+  });
+  assert.deepEqual(h.sent, [], '合成イベントで background へ送った');
+  assert.equal(prevented, false, '合成イベントで本来の遷移を止めた');
+});
+
 // ---- 依存が入らなかったときに立ち直れるか（印を立てる順序） ----
 
 test('post-url.js が入らなかった回は、印を残さず listener も登録しない', () => {
@@ -331,6 +486,96 @@ test('ポストの外での Shift+Alt クリックは、案内の帯も出さな
   shiftAltClick(h, h.strayElement());
   assert.equal(h.created.length, 0, '通知の帯を作ってしまった');
   assert.deepEqual(h.sent, []);
+});
+
+test('Ctrl や Command が一緒に押されていたら反応しない（Windows の AltGr 対策）', () => {
+  // Windows の多くの配列では AltGr が Ctrl+Alt として届く。
+  // これを除かないと、AltGr で記号を打ちながらクリックしただけで反応してしまう。
+  const h = harness();
+  h.load();
+  let prevented = false;
+  for (const mods of [
+    { shiftKey: true, altKey: true, ctrlKey: true }, // Shift+AltGr 相当
+    { shiftKey: true, altKey: true, metaKey: true }, // macOS の Cmd 併用
+  ]) {
+    h.fire('click', {
+      ...mods,
+      target: h.postElement('/alice/status/123'),
+      preventDefault() {
+        prevented = true;
+      },
+      stopPropagation() {},
+    });
+  }
+  assert.deepEqual(h.sent, [], 'AltGr / Command 併用で反応した');
+  assert.equal(prevented, false, '本来の動作を止めてしまった');
+});
+
+test('AltGraph が押されていたら、Ctrl も Command も無くても反応しない', () => {
+  // AltGr が Ctrl+Alt として届かない配列・環境がある。
+  // そこでは ctrlKey / metaKey がどちらも false のまま Shift+AltGr が届くので、
+  // 修飾キーの状態を直接見ないと素通りする。
+  const h = harness();
+  h.load();
+  let prevented = false;
+  let stopped = false;
+  h.fire('click', {
+    shiftKey: true,
+    altKey: true,
+    ctrlKey: false,
+    metaKey: false,
+    getModifierState: (key) => key === 'AltGraph',
+    target: h.postElement('/alice/status/123'),
+    preventDefault() {
+      prevented = true;
+    },
+    stopPropagation() {
+      stopped = true;
+    },
+  });
+  assert.deepEqual(h.sent, [], 'AltGr 単独で反応した');
+  assert.equal(prevented, false, '本来の動作を止めてしまった');
+  assert.equal(stopped, false, '伝播を止めてしまった');
+});
+
+test('AltGraph 以外の修飾キーが押されていても、Shift+Alt クリックは通る', () => {
+  // 上の除外が「getModifierState があれば止める」になっていないことを見る。
+  // 問い合わせる key が 'AltGraph' でなければ、この場面で反応が消える。
+  const h = harness();
+  h.load();
+  const asked = [];
+  h.fire('click', {
+    shiftKey: true,
+    altKey: true,
+    getModifierState: (key) => {
+      asked.push(key);
+      return key === 'CapsLock';
+    },
+    target: h.postElement('/alice/status/123'),
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  assert.equal(h.sent.length, 1, 'AltGraph 以外で反応が消えた');
+  assert.equal(h.sent[0].type, 'open');
+  assert.equal(h.sent[0].url, 'https://x.com/alice/status/123');
+  assert.deepEqual(asked, ['AltGraph'], "問い合わせた修飾キーが 'AltGraph' ではない");
+});
+
+test('getModifierState が無いイベントでも Shift+Alt クリックは通る', () => {
+  // 古い環境では getModifierState が無いことがある。
+  // 存在確認を外すと、ここで例外になって拡張ごと黙って止まる。
+  const h = harness();
+  h.load();
+  h.fire('click', {
+    shiftKey: true,
+    altKey: true,
+    getModifierState: undefined,
+    target: h.postElement('/alice/status/123'),
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  assert.equal(h.sent.length, 1, 'getModifierState が無いと反応しなくなった');
+  assert.equal(h.sent[0].url, 'https://x.com/alice/status/123');
 });
 
 test('修飾キーが揃っていないクリックには反応しない', () => {
