@@ -67,7 +67,7 @@
 | 23 | 同じく日本語 | 日本語で出る | |
 | 24 | DevTools の Network（拡張の service worker） | 拡張自身が出す外部通信が無い | |
 | 25 | 一連の操作のあと Console | エラーが出ていない | |
-| 26 | ポスト A を右クリック → **Esc でメニューを閉じる** → **一切右クリックせずに**65秒待つ → 補助手順で `getContextTarget` を尋ねる | `{ url: null }`（タイマーが参照を消している）。**待っている間に右クリックしないこと**——右クリックすると、それ自体が値を書き換えるので、タイマーを外しても同じ結果になる | |
+| 26 | ポスト A を右クリック → **Esc でメニューを閉じる** → **一切右クリックせずに**65秒待つ → 補助手順で `getContextTarget` を尋ねる | `{ url: null }`＝**60秒を超えた値は返さない**。**待っている間に右クリックしないこと**——右クリックすると、それ自体が値を書き換える。<br>**この項目でタイマーそのものは証明できません。** 問い合わせ側にも経過時間の判定があるため、タイマーを外しても65秒後は `null` になります。タイマーが参照を消していることの証拠は、自動テスト「timer が動けば、時計が60秒未満でも参照は消えている」の側にあります（時計を進めずにタイマーだけ発火させるので、経過時間の判定だけの実装では通りません） | |
 | W1 | **Windows のみ**: ポストを Shift+Alt クリック | **Left Alt+Shift が OS 側の切替に割り当てられている構成**: ポストが開く。入力言語は OS の設定どおり切り替わり得る。**割り当てられていない構成**: ポストだけが開く。どちらでもポストが開くこと自体は変わらない | |
 | W2 | **Windows のみ**: Left Alt+Shift に切替が割り当てられていない状態（入力言語が1つ、または別のホットキー）で Shift+Alt クリック | 入力言語は切り替わらず、ポストだけが開く | |
 | W3 | **Windows のみ**: US-International などの配列で、**AltGr を押しながら**ポストをクリック | **何も起きない**（AltGr が Ctrl+Alt として届く場合と、`getModifierState('AltGraph')` でしか分からない場合の両方を対象外にしてある）。**Windows 実機では未確認** | |
@@ -85,12 +85,17 @@
 2. コンソールで対象タブの ID を調べる
 
 ```js
-const tabs = await chrome.tabs.query({
+const queried = await chrome.tabs.query({
   url: ['https://x.com/*', 'https://www.x.com/*', 'https://twitter.com/*', 'https://www.twitter.com/*'],
-  incognito: false,
 });
+const tabs = queried.filter((tab) => !tab.incognito);
 tabs.map(({ id, url }) => ({ id, url }));
 ```
+
+> `incognito` は**検索条件には書けません**。`chrome.tabs.query()` が受け取る条件に
+> その名前は無く、渡すと `Unexpected property: 'incognito'` で呼び出しごと失敗します。
+> `incognito` は返ってきたタブ側の属性なので、取得してから絞り込みます。
+> （追加の権限は要りません。この4ホストへの権限があるので、対象ページのURLを扱えます）
 
 3. 控えている値を尋ねる（**一度尋ねると消えます**。1回の確認につき1回だけ実行）
 
@@ -118,6 +123,7 @@ await chrome.tabs.sendMessage(TAB_ID, { type: 'getContextTarget' }, { frameId: 0
 
 - 60秒タイマーの handle の扱い（古いタイマーが新しい handle を消さないこと）
 - リンクを直接開いた回に、控えていた値が消えること（#29）
+- 補助手順そのもの（service worker から `chrome.tabs.query` と `getContextTarget` を呼ぶ流れ）
 - `isTrusted` による合成イベントの除外（#27・#28）
 - AltGraph／AltGr の除外（W3）
 - Windows 実機での W1〜W5

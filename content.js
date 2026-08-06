@@ -32,7 +32,7 @@
   // メニューのクリックは background 側で起きるので、そこから問い合わせを受けて返す。
   // content script はページが開いている限り生き続けるため、
   // service worker のように途中で捨てられる心配がない。
-  let lastContext = null; // { url, at, generation }
+  let lastContext = null; // { url, at, generation, source }
   let lastContextTimer = null;
   let contextGeneration = 0;
 
@@ -51,12 +51,17 @@
 
   // 世代番号を見るのは、続けて右クリックしたときに、
   // 古いほうの timer が新しい context を消してしまわないようにするため。
-  function setLastContext(url) {
+  //
+  // source は「リンクの上で右クリックしたか（link）」「ポストの中で
+  // 右クリックしたか（fallback）」の別。消去の判定に使う。
+  // background は前者を content script に聞かずに開けるので、
+  // 遅れて届いた消去が後者を消してしまうのを防ぐ必要がある。
+  function setLastContext(url, source) {
     clearLastContext();
     if (!url) return;
 
     const generation = ++contextGeneration;
-    lastContext = { url, at: Date.now(), generation };
+    lastContext = { url, at: Date.now(), generation, source };
 
     // 自分の handle だけを片づける。
     //
@@ -93,20 +98,26 @@
   //                          「このポストをシークレットウィンドウで開く」を選んでおり、
   //                          本来の遷移を奪ってもいない。文言どおりポストを返す
   function resolveStatusUrl(start, stopAtLink) {
+    return resolveStatusTarget(start, stopAtLink).url;
+  }
+
+  // URL と、それをどこから採ったか（link / fallback）を返す。
+  // 消去の判定に経路が要るので、割り出しの中で分かるここで記録する。
+  function resolveStatusTarget(start, stopAtLink) {
     let el = start && start.nodeType === Node.TEXT_NODE ? start.parentElement : start;
 
     while (el && el !== document.documentElement) {
       if (el.tagName === 'A') {
         const url = postUrl(el.getAttribute('href'));
-        if (url) return url;
-        if (stopAtLink) return null;
+        if (url) return { url, source: 'link' };
+        if (stopAtLink) return { url: null, source: null };
       }
       if (el.tagName === 'ARTICLE') {
-        return postUrl(permalinkHref(el));
+        return { url: postUrl(permalinkHref(el)), source: 'fallback' };
       }
       el = el.parentElement;
     }
-    return null;
+    return { url: null, source: null };
   }
 
   // article の中からパーマリンクの href を取り出す。
@@ -141,7 +152,8 @@
       if (!e.isTrusted) return;
 
       // 右クリックは打ち切らない（メニューの文言どおりポストを返す）
-      setLastContext(resolveStatusUrl(e.target, false));
+      const target = resolveStatusTarget(e.target, false);
+      setLastContext(target.url, target.source);
     },
     true
   );
@@ -212,6 +224,11 @@
         sendResponse({ cleared: false, reason: 'empty' });
       } else if (lastContext.url !== expected) {
         sendResponse({ cleared: false, reason: 'mismatch' });
+      } else if (lastContext.source !== 'link') {
+        // URL は同じでも、これは「リンクの上での右クリック」で作られた値ではない。
+        // 消去の依頼が飛んだあとに、同じポストの本文を右クリックした場合がこれで、
+        // その値はメニューを押したときに必要になる。消してはいけない。
+        sendResponse({ cleared: false, reason: 'superseded' });
       } else {
         clearLastContext();
         sendResponse({ cleared: true });

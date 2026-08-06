@@ -360,10 +360,12 @@ test('ポストの外を右クリックすると、前の context も timer も�
   assert.equal(h.ask({ type: 'getContextTarget' }).url, null);
 });
 
-test('clearContextTarget は、控えている値と同じときだけ消す', () => {
+test('clearContextTarget は、リンク上の右クリックで控えた同じ値だけを消す', () => {
+  // 消去が飛ぶのは、右クリックした先がポストのリンクだったときだけ。
+  // そのとき content 側も、そのリンクから値を採っている。
   const h = harness();
   h.load();
-  h.fire('contextmenu', { target: h.postElement('/alice/status/1') });
+  h.fire('contextmenu', { target: h.linkElement('/alice/status/1') });
   assert.equal(h.pendingTimers(TTL), 1, '対照: timer が仕掛かっていない');
 
   const res = h.ask({ type: 'clearContextTarget', expectedUrl: 'https://x.com/alice/status/1' });
@@ -371,6 +373,38 @@ test('clearContextTarget は、控えている値と同じときだけ消す', (
   assert.equal(res.cleared, true);
   assert.equal(h.ask({ type: 'getContextTarget' }).url, null, '値が残っている');
   assert.equal(h.pendingTimers(TTL), 0, 'timer が残っている');
+});
+
+test('古い消去は、同じURLでも、あとから本文で控えた値を消さない', () => {
+  // A: ポストのリンクを右クリック（background は content に聞かず直接開ける）
+  // その消去が届く前に、B: 同じポストの本文を右クリック。
+  // B はメニューを押したときに必要な値なので、URL が同じでも消してはいけない。
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { target: h.linkElement('/alice/status/1') });
+  h.fire('contextmenu', { target: h.postElement('/alice/status/1') });
+
+  const res = h.ask({ type: 'clearContextTarget', expectedUrl: 'https://x.com/alice/status/1' });
+
+  assert.equal(res.cleared, false, '同じURLの新しい値を消した');
+  assert.equal(res.reason, 'superseded');
+  assert.equal(
+    h.ask({ type: 'getContextTarget' }).url,
+    'https://x.com/alice/status/1',
+    '本文で控えた値が消えている'
+  );
+});
+
+test('本文で控えた値は、そもそも消去の対象にしない', () => {
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { target: h.postElement('/alice/status/1') });
+
+  const res = h.ask({ type: 'clearContextTarget', expectedUrl: 'https://x.com/alice/status/1' });
+
+  assert.equal(res.cleared, false);
+  assert.equal(res.reason, 'superseded');
+  assert.equal(h.ask({ type: 'getContextTarget' }).url, 'https://x.com/alice/status/1');
 });
 
 test('遅れて届いた古い消去は、あとから控えた別の値を消さない', () => {

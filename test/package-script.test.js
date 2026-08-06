@@ -748,6 +748,49 @@ test('T16. 成功したときの成果物は、通常のファイルで、表示
   assert.deepEqual(distEntries(dir), [name], 'dist に余分なものが残っている');
 });
 
+// ---- T17・T18. 置いたあとの検査を、外から壊して確かめる ----
+//
+// 成果物を最終的な名前へ置いたあと、スクリプトはもう一度その型と SHA-256 を
+// 確かめる。この2つは、置いた直後に外から割り込まれない限り破れないので、
+// 普通のテストでは到達できない（第6回では変異させても1件も落ちなかった）。
+//
+// そこで、テストが起動する node の中だけで fs を包み、「置いたあとに型が
+// 変わった」「置いたあとに中身が変わった」場面を作る。
+// 製品側のコードにはデバッグ用の分岐を足していない。
+
+const FAULT_SHIM = path.join(REPO, 'tools', 'fs-fault-shim.js');
+
+test('T17. 置いたあとに型が変わっていたら、成果物を残さず失敗する', (t) => {
+  const dir = makeRepo(t);
+  const r = runPackage(dir, {
+    env: { NODE_OPTIONS: `--require=${FAULT_SHIM}`, POSTCLOAK_TEST_FAULT: 'type' },
+  });
+
+  assert.notEqual(r.status, 0, '置いたあとの型が変わっていたのに成功した');
+  assert.match(r.stderr, /置いたあとの .* が通常のファイルではないものになっています/);
+  assert.deepEqual(distEntries(dir), [], '壊れた成果物が残っている');
+});
+
+test('T18. 置いたあとに中身が変わっていたら、成果物を残さず失敗する', (t) => {
+  const dir = makeRepo(t);
+  const r = runPackage(dir, {
+    env: { NODE_OPTIONS: `--require=${FAULT_SHIM}`, POSTCLOAK_TEST_FAULT: 'sha' },
+  });
+
+  assert.notEqual(r.status, 0, '表示した SHA-256 と中身が違うのに成功した');
+  assert.match(r.stderr, /SHA-256 が検査時と違います/);
+  assert.deepEqual(distEntries(dir), [], '中身の違う成果物が残っている');
+});
+
+test('T19. 差し込みを入れても、指定が無ければ普通に作れる（対照）', (t) => {
+  // T17・T18 が「差し込みを読み込んだせいで落ちた」のではないことを示す。
+  const dir = makeRepo(t);
+  const r = runPackage(dir, { env: { NODE_OPTIONS: `--require=${FAULT_SHIM}` } });
+
+  assert.equal(r.status, 0, `差し込みを読み込んだだけで失敗した: ${r.stderr}`);
+  assert.deepEqual(distEntries(dir), [`postcloak-1.6.1-${shortHead(dir)}.zip`]);
+});
+
 // ---- 17. 同じ環境での再現性 ----
 
 test('17. 同じコミット・同じ環境で2回作ると SHA-256 が一致する', (t) => {
