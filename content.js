@@ -32,7 +32,49 @@
   // メニューのクリックは background 側で起きるので、そこから問い合わせを受けて返す。
   // content script はページが開いている限り生き続けるため、
   // service worker のように途中で捨てられる心配がない。
-  let lastContext = null; // { url, at }
+  let lastContext = null; // { url, at, generation }
+  let lastContextTimer = null;
+  let contextGeneration = 0;
+
+  // 参照そのものを消す。
+  //
+  // 問い合わせ時に経過時間を見るだけだと、60秒を過ぎた値は「使えない」が
+  // 「消えていない」——次の操作が来るまで古い URL がメモリに残り続ける。
+  // 文書に「60秒で捨てる」と書く以上、実際に捨てるようにする。
+  function clearLastContext() {
+    lastContext = null;
+    if (lastContextTimer !== null) {
+      clearTimeout(lastContextTimer);
+      lastContextTimer = null;
+    }
+  }
+
+  // 世代番号を見るのは、続けて右クリックしたときに、
+  // 古いほうの timer が新しい context を消してしまわないようにするため。
+  function setLastContext(url) {
+    clearLastContext();
+    if (!url) return;
+
+    const generation = ++contextGeneration;
+    lastContext = { url, at: Date.now(), generation };
+
+    // 自分の handle だけを片づける。
+    //
+    // 無条件に lastContextTimer = null とすると、停止中のタブなどで古い timer が
+    // 遅れて動いたときに、そのとき動いている新しい timer の handle まで消えてしまう。
+    // handle を失った timer は clearLastContext() で解除できなくなり、
+    // 値を渡したあとも 60 秒後の callback だけが残る。
+    const timerId = setTimeout(() => {
+      if (lastContext && lastContext.generation === generation) {
+        lastContext = null;
+      }
+      if (lastContextTimer === timerId) {
+        lastContextTimer = null;
+      }
+    }, CONTEXT_TTL_MS);
+
+    lastContextTimer = timerId;
+  }
 
   /* ---------- 1. URL の割り出し ---------- */
 
@@ -85,14 +127,21 @@
 
   /* ---------- 2. 右クリック ---------- */
 
-  // capture 段で拾う。ページ側が contextmenu を止めても、こちらへ先に届く。
+  // capture 段で拾い、bubble 段での伝播停止の影響を受けにくくする。
+  // ただし、より先に登録された window / document の capture listener による
+  // 伝播停止まで防げるわけではない。
   // preventDefault はしない（Chrome 標準のメニューはそのまま出す）。
   document.addEventListener(
     'contextmenu',
     (e) => {
+      // ページ側の script が作った合成イベントは受け取らない。
+      // 共有された DOM の上では、ページ側が contextmenu を自分で dispatch できる。
+      // それを利用者の操作として扱うと、望まないシークレットウィンドウが開いたり、
+      // 直前の右クリック対象を横から書き換えられたりする。
+      if (!e.isTrusted) return;
+
       // 右クリックは打ち切らない（メニューの文言どおりポストを返す）
-      const url = resolveStatusUrl(e.target, false);
-      lastContext = url ? { url, at: Date.now() } : null;
+      setLastContext(resolveStatusUrl(e.target, false));
     },
     true
   );
@@ -102,6 +151,18 @@
   document.addEventListener(
     'click',
     (e) => {
+      // 合成イベントは受け取らない（上の contextmenu と同じ理由）
+      if (!e.isTrusted) return;
+      // Ctrl / Command が一緒に押されているときは対象外。
+      // Windows の多くのキーボード配列（US-International など）では AltGr が
+      // Ctrl+Alt として届くので、これを除かないと AltGr で記号を打ちながら
+      // クリックしただけで反応してしまう。文書どおり「Shift+Alt だけ」にする。
+      //
+      // AltGr が Ctrl+Alt として届かない配列・環境もあるので、修飾キーの状態を
+      // 直接も見る。getModifierState は古い環境に無いことがあるため存在確認つき。
+      const altGraph =
+        typeof e.getModifierState === 'function' && e.getModifierState('AltGraph');
+      if (e.ctrlKey || e.metaKey || altGraph) return;
       if (!e.shiftKey || !e.altKey) return;
 
       // Shift+Alt は本来の遷移を奪うので、/status/ 以外のリンク上では打ち切る
@@ -126,7 +187,10 @@
       const ctx = lastContext;
       // 一度渡した値は捨てる。取っておくと、次に右クリックが届かなかったときに
       // 前のポストを開いてしまう（旧実装のいちばん困る挙動と同じ症状になる）。
-      lastContext = null;
+      // timer も一緒に解除する。
+      clearLastContext();
+      // timer は停止中のタブなどで遅れて動くことがあるので、時刻の判定も残す。
+      // どちらか一方ではなく、両方で 60 秒を超えた値を返さないようにする。
       const fresh = ctx && Date.now() - ctx.at < CONTEXT_TTL_MS;
       if (!fresh) notify(chrome.i18n.getMessage('errorNoPostFound'));
       sendResponse({ url: fresh ? ctx.url : null });
@@ -182,7 +246,9 @@
         borderRadius: '9999px',
         background: 'rgba(15,20,25,.92)',
         color: '#fff',
-        font: '14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        // Windows では Segoe UI、日本語が入る場合は Yu Gothic UI / Meiryo へ落とす。
+        // ページ側の font-family を継承しないよう、ここで明示する。
+        font: '14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Yu Gothic UI", Meiryo, Roboto, Arial, sans-serif',
         textAlign: 'center',
         // 他の拡張が最大値を使うことがあるので、こちらも最大値に揃える。
         zIndex: '2147483647',
