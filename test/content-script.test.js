@@ -360,6 +360,34 @@ test('ポストの外を右クリックすると、前の context も timer も�
   assert.equal(h.ask({ type: 'getContextTarget' }).url, null);
 });
 
+test('clearContextTarget で、控えている値も timer も消える', () => {
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { target: h.postElement('/alice/status/1') });
+  assert.equal(h.pendingTimers(TTL), 1, '対照: timer が仕掛かっていない');
+
+  h.ask({ type: 'clearContextTarget' });
+
+  assert.equal(h.ask({ type: 'getContextTarget' }).url, null, '値が残っている');
+  assert.equal(h.pendingTimers(TTL), 0, 'timer が残っている');
+});
+
+test('clearContextTarget は、画面へ何も出さない', () => {
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { target: h.postElement('/alice/status/1') });
+  h.ask({ type: 'clearContextTarget' });
+  assert.equal(h.created.length, 0, '通知の帯を作ってしまった');
+});
+
+test('clearContextTarget は、値が無くても二度送っても例外にならない', () => {
+  const h = harness();
+  h.load();
+  h.ask({ type: 'clearContextTarget' });
+  h.ask({ type: 'clearContextTarget' });
+  assert.equal(h.pendingTimers(TTL), 0);
+});
+
 test('一度渡したら timer も解除される', () => {
   const h = harness();
   h.load();

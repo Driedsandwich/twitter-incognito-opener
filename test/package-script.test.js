@@ -35,13 +35,28 @@ const FIXTURE_FILES = [
   'tools/package-files.txt',
 ];
 
-const REAL_GIT = which('git');
-const REAL_UNZIP = which('unzip');
-
 function which(cmd) {
   const r = spawnSync('sh', ['-c', `command -v ${cmd}`], { encoding: 'utf8' });
-  return r.stdout.trim();
+  return r.status === 0 ? r.stdout.trim() : '';
 }
+
+// このファイルのテストは、拡張のコードではなく「提出物を作る手順」を確かめる。
+// そのため Node 以外の道具が要る。無い環境では、意味の分からない TypeError や
+// 空文字のパスで落ちるのではなく、何が足りないかを名指しで止める。
+//
+// skip にはしない。ここは提出前の関門なので、確かめられないまま
+// 「通った」と表示されるほうが危ない。
+const REQUIRED_COMMANDS = ['sh', 'bash', 'git', 'zip', 'unzip', 'cmp'];
+const MISSING = REQUIRED_COMMANDS.filter((c) => !which(c));
+if (MISSING.length > 0) {
+  throw new Error(
+    `提出物のテストに必要なコマンドがありません: ${MISSING.join(', ')}\n` +
+      'Node.js だけでは走りません。WSL か、これらの道具が揃った環境で実行してください。'
+  );
+}
+
+const REAL_GIT = which('git');
+const REAL_UNZIP = which('unzip');
 
 function git(cwd, args) {
   const r = spawnSync(
@@ -194,9 +209,15 @@ test('7. 提出対象が無いと失敗する', (t) => {
   const dir = makeRepo(t);
   fs.rmSync(path.join(dir, 'post-url.js'));
 
+  // 通常モードは、その前の dirty 判定で止まる（追跡ファイルが消えている）
   const r = runPackage(dir);
   assert.notEqual(r.status, 0);
-  assert.match(r.stderr, /提出対象の post-url\.js がありません/);
+  assert.deepEqual(distEntries(dir), []);
+
+  // 抜け道を使っても、提出対象が無いことを理由に止まる
+  const forced = runPackage(dir, { env: { POSTCLOAK_ALLOW_DIRTY_PACKAGE: '1' } });
+  assert.notEqual(forced.status, 0);
+  assert.match(forced.stderr, /提出対象の post-url\.js がありません/);
   assert.deepEqual(distEntries(dir), []);
 });
 
@@ -208,7 +229,11 @@ test('8. 提出対象がシンボリックリンクだと失敗する', (t) => {
 
   const r = runPackage(dir);
   assert.notEqual(r.status, 0);
-  assert.match(r.stderr, /シンボリックリンク/);
+  assert.deepEqual(distEntries(dir), []);
+
+  const forced = runPackage(dir, { env: { POSTCLOAK_ALLOW_DIRTY_PACKAGE: '1' } });
+  assert.notEqual(forced.status, 0);
+  assert.match(forced.stderr, /シンボリックリンク/);
   assert.deepEqual(distEntries(dir), []);
 });
 
@@ -395,6 +420,221 @@ test('16b. dist がファイルだと失敗する', (t) => {
   const r = runPackage(dir);
   assert.notEqual(r.status, 0);
   assert.match(r.stderr, /dist がディレクトリではありません/);
+});
+
+// ---- T1〜T7. index の印で隠した変更 ----
+//
+// assume-unchanged と skip-worktree が立っていると、実際に変更があっても
+// `git diff --quiet HEAD --` は成功し `git status --short` も空になる。
+// 「git が何も言わない」ことを clean の根拠にすると、HEAD に無い中身で
+// HEAD のコミット名を名乗る成果物ができてしまう。
+//
+// 各テストは、まず対照として「git が本当に黙っていること」を実測してから、
+// package だけは止まることを見る。対照が無いと、単に別の理由で
+// 落ちているのを成功と読み違える。
+
+function hide(dir, file, flag) {
+  git(dir, ['update-index', `--${flag}`, file]);
+}
+
+function assertGitIsSilent(dir) {
+  const diff = spawnSync(REAL_GIT, ['diff', '--quiet', 'HEAD', '--'], { cwd: dir });
+  assert.equal(diff.status, 0, '対照が成立していない（git diff が変更を検出した）');
+  assert.equal(git(dir, ['status', '--short']).trim(), '', '対照が成立していない（git status が空でない）');
+}
+
+for (const [n, flag] of [
+  ['T1', 'assume-unchanged'],
+  ['T2', 'skip-worktree'],
+]) {
+  test(`${n}. ${flag} で隠した payload の変更を、通常モードは拒否する`, (t) => {
+    const dir = makeRepo(t);
+    fs.appendFileSync(path.join(dir, 'content.js'), '\n// 隠した変更\n');
+    hide(dir, 'content.js', flag);
+
+    assertGitIsSilent(dir);
+
+    const r = runPackage(dir);
+    assert.notEqual(r.status, 0, 'git が黙っているだけで通してしまった');
+    assert.match(r.stderr, /印|一致しません/);
+    assert.deepEqual(distEntries(dir), [], '提出名の成果物ができた');
+  });
+}
+
+test('T3. assume-unchanged で隠した manifest の version 変更を拒否する', (t) => {
+  const dir = makeRepo(t);
+  const p = path.join(dir, 'manifest.json');
+  const m = JSON.parse(fs.readFileSync(p, 'utf8'));
+  m.version = '9.9.9';
+  fs.writeFileSync(p, JSON.stringify(m, null, 2) + '\n');
+  hide(dir, 'manifest.json', 'assume-unchanged');
+
+  assertGitIsSilent(dir);
+
+  const r = runPackage(dir);
+  assert.notEqual(r.status, 0);
+  assert.deepEqual(distEntries(dir), [], '作業ツリー側の version で成果物ができた');
+  assert.ok(!r.stdout.includes('9.9.9'), '隠した version が名前に使われた');
+});
+
+test('T4. skip-worktree で隠した配布一覧の変更を拒否する', (t) => {
+  const dir = makeRepo(t);
+  writeList(dir, readList(dir).filter((f) => f !== 'LICENSE'));
+  hide(dir, 'tools/package-files.txt', 'skip-worktree');
+
+  assertGitIsSilent(dir);
+
+  const r = runPackage(dir);
+  assert.notEqual(r.status, 0, 'HEAD に無い一覧が配布内容を決めてしまった');
+  assert.deepEqual(distEntries(dir), []);
+});
+
+test('T5. assume-unchanged で隠した package script の変更を拒否する', (t) => {
+  const dir = makeRepo(t);
+  fs.appendFileSync(path.join(dir, 'tools/package.sh'), '\n# 隠した変更\n');
+  hide(dir, 'tools/package.sh', 'assume-unchanged');
+
+  assertGitIsSilent(dir);
+
+  const r = runPackage(dir);
+  assert.notEqual(r.status, 0, 'HEAD に無い作られ方で公式名の成果物ができた');
+  assert.deepEqual(distEntries(dir), []);
+});
+
+test('T6. 印がついていても、抜け道で作れるのは UNCOMMITTED だけ', (t) => {
+  const dir = makeRepo(t);
+  fs.appendFileSync(path.join(dir, 'content.js'), '\n// 隠した変更\n');
+  hide(dir, 'content.js', 'assume-unchanged');
+
+  const r = runPackage(dir, { env: { POSTCLOAK_ALLOW_DIRTY_PACKAGE: '1' } });
+  assert.equal(r.status, 0, `抜け道で失敗した: ${r.stderr}`);
+  assert.deepEqual(distEntries(dir), ['postcloak-1.6.1-UNCOMMITTED.zip']);
+  const releaseName = `postcloak-1.6.1-${shortHead(dir)}.zip`;
+  assert.ok(!distEntries(dir).includes(releaseName), '提出名の成果物ができた');
+});
+
+test('T8. index に印が無くても、作られ方を決めるファイルが HEAD と違えば止まる', (t) => {
+  // clean/smudge フィルタを対にすると、作業ツリーの中身が HEAD と違うのに
+  // git diff も git status も黙り、しかも ls-files の印は付かない（H のまま）。
+  // 印の検査では見えない経路なので、ここはバイト比較だけが効く。
+  const dir = makeRepo(t);
+  git(dir, ['config', 'filter.inject.smudge', 'cat; echo "README.md"']);
+  git(dir, ['config', 'filter.inject.clean', 'grep -v "^README.md$" || true']);
+  fs.mkdirSync(path.join(dir, '.git/info'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.git/info/attributes'), 'tools/package-files.txt filter=inject\n');
+  fs.rmSync(path.join(dir, 'tools/package-files.txt'));
+  git(dir, ['checkout', '--', 'tools/package-files.txt']);
+
+  // 対照: 仕掛けが本当に成立しているか（git は黙り、印も付いていない）
+  assertGitIsSilent(dir);
+  const flags = git(dir, ['ls-files', '-v', '--', 'tools/package-files.txt']).trim();
+  assert.ok(flags.startsWith('H '), `印が付いてしまっている: ${flags}`);
+  assert.notEqual(
+    fs.readFileSync(path.join(dir, 'tools/package-files.txt'), 'utf8'),
+    git(dir, ['show', 'HEAD:tools/package-files.txt']),
+    '対照が成立していない（作業ツリーと HEAD が同じ）'
+  );
+
+  const r = runPackage(dir);
+  assert.notEqual(r.status, 0, '印が無いだけで通してしまった');
+  assert.match(r.stderr, /HEAD の中身と一致しません/);
+  assert.deepEqual(distEntries(dir), []);
+});
+
+test('T9. 通常モードの version は、作業ツリーではなく HEAD から読む', (t) => {
+  // T8 と同じ仕掛けを manifest.json へ当てる。作業ツリーの version は 9.9.9、
+  // HEAD は 1.6.1。git は黙り、印も付かない。
+  // この状態は最終的に停止するのが正しいが、「止まる前にどちらの version を
+  // 読んだか」で、HEAD 由来かどうかが分かる。
+  const dir = makeRepo(t);
+  git(dir, ['config', 'filter.ver.smudge', 'sed "s/\\"version\\": \\"1.6.1\\"/\\"version\\": \\"9.9.9\\"/"']);
+  git(dir, ['config', 'filter.ver.clean', 'sed "s/\\"version\\": \\"9.9.9\\"/\\"version\\": \\"1.6.1\\"/"']);
+  fs.mkdirSync(path.join(dir, '.git/info'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.git/info/attributes'), 'manifest.json filter=ver\n');
+  fs.rmSync(path.join(dir, 'manifest.json'));
+  git(dir, ['checkout', '--', 'manifest.json']);
+
+  // 対照: 仕掛けが成立しているか
+  assertGitIsSilent(dir);
+  assert.equal(
+    JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')).version,
+    '9.9.9',
+    '対照が成立していない（作業ツリーの version が変わっていない）'
+  );
+
+  const r = runPackage(dir);
+  assert.match(r.stderr, /version 1\.6\.1（いずれも HEAD 由来）/, 'HEAD ではなく作業ツリーの version を読んでいる');
+  assert.doesNotMatch(r.stderr, /version 9\.9\.9/);
+  assert.notEqual(r.status, 0, '作業ツリーと HEAD が違うのに通した');
+  assert.deepEqual(distEntries(dir), []);
+});
+
+test('T7. 通常モードの一覧と version は HEAD 由来である', (t) => {
+  const dir = makeRepo(t);
+
+  // HEAD 側だけを変える。作業ツリーは HEAD と同じままなので clean。
+  const p = path.join(dir, 'manifest.json');
+  const m = JSON.parse(fs.readFileSync(p, 'utf8'));
+  m.version = '1.7.0';
+  fs.writeFileSync(p, JSON.stringify(m, null, 2) + '\n');
+  git(dir, ['add', '-A']);
+  git(dir, ['commit', '-q', '-m', 'bump']);
+
+  const r = runPackage(dir);
+  assert.equal(r.status, 0, `失敗した: ${r.stderr}`);
+  assert.deepEqual(distEntries(dir), [`postcloak-1.7.0-${shortHead(dir)}.zip`]);
+
+  // HEAD の一覧に載っているものが、そのまま入っている
+  const fromHead = git(dir, ['show', 'HEAD:tools/package-files.txt'])
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith('#'))
+    .sort();
+  assert.deepEqual(
+    zipEntries(path.join(dir, 'dist', `postcloak-1.7.0-${shortHead(dir)}.zip`)).filter((e) => !e.endsWith('/')),
+    fromHead
+  );
+});
+
+// ---- T10. 途中で死んだときに成功として出ない ----
+
+test('T10. 途中で致命的なエラーが起きたら、終了コードは 0 にならない', (t) => {
+  // bash 3.2 では、set -u の展開エラーでシェルが止まっても、EXIT トラップから
+  // 見える $? は 0 のままになる（実測）。$? だけを返す後始末だと、
+  // 「途中で死んだ」が「成功」として外へ出る。
+  //
+  // ここでは fixture 側の複製に、必ず失敗する展開を1行入れてコミットし、
+  // 作業ツリーは clean のまま走らせる。ロケールや bash の版に依存しないよう、
+  // 未定義であることが明らかな変数名を使う。
+  const dir = makeRepo(t);
+  const p = path.join(dir, 'tools/package.sh');
+  const src = fs.readFileSync(p, 'utf8');
+  const anchor = 'if ! git rev-parse --git-dir >/dev/null 2>&1; then';
+  assert.ok(src.includes(anchor), '差し込み位置が見つからない');
+  fs.writeFileSync(p, src.replace(anchor, `echo "$POSTCLOAK_TEST_UNDEFINED_VARIABLE"\n${anchor}`));
+  git(dir, ['add', '-A']);
+  git(dir, ['commit', '-q', '-m', 'inject fatal expansion']);
+
+  const r = runPackage(dir);
+  assert.notEqual(r.status, 0, '途中で死んだのに終了コードが 0 になった');
+  assert.deepEqual(distEntries(dir), [], '死んだのに成果物ができた');
+});
+
+test('T11. シェルスクリプトに、変数名として読まれる書き方が残っていない', () => {
+  // bash 3.2 は "$VAR。" を「VAR。」という名前の変数として読む。
+  // set -u と組み合わさると、その行に来た瞬間に死ぬ。
+  // 同じ書き方を2度作り込んだので、目視ではなく機械で止める。
+  const bad = [];
+  for (const rel of ['tools/package.sh']) {
+    const lines = fs.readFileSync(path.join(REPO, rel), 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      // ${VAR} 形式は安全。$VAR の直後に非 ASCII が続くものだけを拾う。
+      if (/\$[A-Za-z_][A-Za-z0-9_]*[^\x00-\x7f]/.test(line)) {
+        bad.push(`${rel}:${i + 1}: ${line.trim()}`);
+      }
+    });
+  }
+  assert.deepEqual(bad, [], `変数の直後に非 ASCII が続く箇所は \${VAR} 形式にする:\n${bad.join('\n')}`);
 });
 
 // ---- 17. 同じ環境での再現性 ----

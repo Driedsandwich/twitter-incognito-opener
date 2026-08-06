@@ -41,7 +41,7 @@ pro.x.com（X Pro）は画面の作りが別で、対象外です。
 ・シークレットウィンドウは何枚開いても中身を共有し、最後の1枚を閉じるまで
 　セッションが残ります
 ・ポストのURLでないリンク（プロフィール、外部記事、ハッシュタグなど）の上で
-　Shift+Alt クリックしたときは、この拡張は何もせず、Chrome 本来の動作に任せます。
+　Shift+Alt クリックしたときは、この拡張は介入せず、Chrome とページ本来の動作に任せます。
 　ポストのパーマリンクや画像のリンクは、そのポストとして扱います
 ・Windows の一部の構成では、Left Alt+Shift が入力言語またはキーボードレイアウトの
 　切替に割り当てられていることがあります。その構成で Shift+Alt クリックすると、
@@ -104,7 +104,8 @@ pro.x.com (X Pro) has a different layout and is out of scope.
   Incognito window you already have open.
 - Incognito windows share one session; it lasts until you close the last one.
 - Shift+Alt clicking a link that is not a post URL (a profile, an external article, a
-  hashtag) does nothing; Chrome's own behavior is left alone. A post permalink or a post
+  hashtag) does nothing; the extension does not intervene, and Chrome and the page handle
+  the click normally. A post permalink or a post
   image link is treated as that post.
 - On some Windows configurations, Left Alt+Shift may be assigned to switch the input
   language or keyboard layout. In that configuration, a Shift+Alt click may also trigger
