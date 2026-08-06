@@ -360,32 +360,77 @@ test('ポストの外を右クリックすると、前の context も timer も�
   assert.equal(h.ask({ type: 'getContextTarget' }).url, null);
 });
 
-test('clearContextTarget で、控えている値も timer も消える', () => {
+test('clearContextTarget は、控えている値と同じときだけ消す', () => {
   const h = harness();
   h.load();
   h.fire('contextmenu', { target: h.postElement('/alice/status/1') });
   assert.equal(h.pendingTimers(TTL), 1, '対照: timer が仕掛かっていない');
 
-  h.ask({ type: 'clearContextTarget' });
+  const res = h.ask({ type: 'clearContextTarget', expectedUrl: 'https://x.com/alice/status/1' });
 
+  assert.equal(res.cleared, true);
   assert.equal(h.ask({ type: 'getContextTarget' }).url, null, '値が残っている');
   assert.equal(h.pendingTimers(TTL), 0, 'timer が残っている');
+});
+
+test('遅れて届いた古い消去は、あとから控えた別の値を消さない', () => {
+  // A を右クリック → A を直接開く経路で消去が飛ぶ → その到着より前に B を右クリック。
+  // 対象を見ないで消すと、ここで B が消える。
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { target: h.postElement('/alice/status/1') });
+  h.fire('contextmenu', { target: h.postElement('/bob/status/2') });
+
+  const res = h.ask({ type: 'clearContextTarget', expectedUrl: 'https://x.com/alice/status/1' });
+
+  assert.equal(res.cleared, false);
+  assert.equal(res.reason, 'mismatch');
+  assert.equal(
+    h.ask({ type: 'getContextTarget' }).url,
+    'https://x.com/bob/status/2',
+    '古い消去が新しい値を消した'
+  );
+});
+
+test('消去の対象が指定されていない・壊れているときは何もしない', () => {
+  const h = harness();
+  h.load();
+  h.fire('contextmenu', { target: h.postElement('/alice/status/1') });
+
+  for (const expectedUrl of [undefined, '', 'https://evil.example/alice/status/1', 'not a url']) {
+    const res = h.ask({ type: 'clearContextTarget', expectedUrl });
+    assert.equal(res.cleared, false, `消してしまった: ${String(expectedUrl)}`);
+    assert.equal(res.reason, 'invalid');
+  }
+  assert.equal(h.ask({ type: 'getContextTarget' }).url, 'https://x.com/alice/status/1', '値が消えた');
+});
+
+test('控えている値が無いときの消去は、何もせず reason を返す', () => {
+  const h = harness();
+  h.load();
+  const res = h.ask({ type: 'clearContextTarget', expectedUrl: 'https://x.com/alice/status/1' });
+  assert.equal(res.cleared, false);
+  assert.equal(res.reason, 'empty');
+  assert.equal(h.pendingTimers(TTL), 0);
 });
 
 test('clearContextTarget は、画面へ何も出さない', () => {
   const h = harness();
   h.load();
   h.fire('contextmenu', { target: h.postElement('/alice/status/1') });
-  h.ask({ type: 'clearContextTarget' });
+  h.ask({ type: 'clearContextTarget', expectedUrl: 'https://x.com/alice/status/1' });
+  h.ask({ type: 'clearContextTarget', expectedUrl: 'https://x.com/alice/status/1' });
   assert.equal(h.created.length, 0, '通知の帯を作ってしまった');
 });
 
-test('clearContextTarget は、値が無くても二度送っても例外にならない', () => {
+test('消去は派生ページのURLでも、同じポストなら一致とみなす', () => {
+  // background は info.linkUrl を正規化してから開く。content 側も同じ判定器を
+  // 通すので、/photo/1 のようなリンクを右クリックした回でも一致する。
   const h = harness();
   h.load();
-  h.ask({ type: 'clearContextTarget' });
-  h.ask({ type: 'clearContextTarget' });
-  assert.equal(h.pendingTimers(TTL), 0);
+  h.fire('contextmenu', { target: h.linkElement('/alice/status/1/photo/1') });
+  const res = h.ask({ type: 'clearContextTarget', expectedUrl: 'https://x.com/alice/status/1' });
+  assert.equal(res.cleared, true, '同じポストなのに消せていない');
 });
 
 test('一度渡したら timer も解除される', () => {

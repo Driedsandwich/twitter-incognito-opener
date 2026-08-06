@@ -620,6 +620,24 @@ test('T10. 途中で致命的なエラーが起きたら、終了コードは 0 
   assert.deepEqual(distEntries(dir), [], '死んだのに成果物ができた');
 });
 
+test('T10b. 途中で exit 0 して終わったら、成功として出さない', (t) => {
+  // T10 は未定義変数を使うが、その場合に $? がどう見えるかは bash の版で違う。
+  // bash 5 では未定義変数だけで exit 1 になるため、印の仕組みを外しても T10 は通る。
+  // 版に依らず印だけが効く場面として、明示的な exit 0 を注入する。
+  const dir = makeRepo(t);
+  const p = path.join(dir, 'tools/package.sh');
+  const src = fs.readFileSync(p, 'utf8');
+  const anchor = 'if ! git rev-parse --git-dir >/dev/null 2>&1; then';
+  assert.ok(src.includes(anchor), '差し込み位置が見つからない');
+  fs.writeFileSync(p, src.replace(anchor, `exit 0\n${anchor}`));
+  git(dir, ['add', '-A']);
+  git(dir, ['commit', '-q', '-m', 'inject early exit 0']);
+
+  const r = runPackage(dir);
+  assert.notEqual(r.status, 0, '最後まで到達していないのに終了コードが 0 になった');
+  assert.deepEqual(distEntries(dir), [], '成果物ができた');
+});
+
 test('T11. シェルスクリプトに、変数名として読まれる書き方が残っていない', () => {
   // bash 3.2 は "$VAR。" を「VAR。」という名前の変数として読む。
   // set -u と組み合わさると、その行に来た瞬間に死ぬ。
@@ -635,6 +653,99 @@ test('T11. シェルスクリプトに、変数名として読まれる書き方
     });
   }
   assert.deepEqual(bad, [], `変数の直後に非 ASCII が続く箇所は \${VAR} 形式にする:\n${bad.join('\n')}`);
+});
+
+// ---- T12〜T16. 出力先そのものが差し替えられているとき ----
+//
+// `mv A B` は B がディレクトリだと「B の中へ入れる」に化ける。実測では、
+// B がディレクトリでも、ディレクトリへのシンボリックリンクでも mv は成功し、
+// ZIP は B の中（リンクならリポジトリの外）へ置かれた。それでも表示は
+// 「作成: B」のままなので、提出物ができたという主張だけが嘘になる。
+
+function releaseName(dir) {
+  return `postcloak-1.6.1-${shortHead(dir)}.zip`;
+}
+
+test('T12. 出力先がディレクトリなら失敗し、その中へ置かない', (t) => {
+  const dir = makeRepo(t);
+  const out = path.join(dir, 'dist', releaseName(dir));
+  fs.mkdirSync(out, { recursive: true });
+
+  const r = runPackage(dir);
+  assert.notEqual(r.status, 0, 'ディレクトリなのに成功した');
+  assert.match(r.stderr, /出力先 .* が通常のファイルではありません/, '作る前の確認で止まっていない');
+  assert.deepEqual(fs.readdirSync(out), [], 'ディレクトリの中へ置いた');
+});
+
+test('T13. 出力先がディレクトリへのリンクなら失敗し、リンク先へ置かない', (t) => {
+  const dir = makeRepo(t);
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'postcloak-outdir-'));
+  t.after(() => fs.rmSync(outside, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(dir, 'dist'), { recursive: true });
+  fs.symlinkSync(outside, path.join(dir, 'dist', releaseName(dir)));
+
+  const r = runPackage(dir);
+  assert.notEqual(r.status, 0, 'リンクなのに成功した');
+  assert.match(r.stderr, /出力先 .* がシンボリックリンクです/, '作る前の確認で止まっていない');
+  assert.deepEqual(fs.readdirSync(outside), [], 'リンク先へ置いた');
+});
+
+test('T14. 出力先がファイルへのリンクなら失敗し、リンク先を書き換えない', (t) => {
+  const dir = makeRepo(t);
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'postcloak-outfile-'));
+  t.after(() => fs.rmSync(outside, { recursive: true, force: true }));
+  const target = path.join(outside, 'target.bin');
+  fs.writeFileSync(target, 'もとの中身');
+  fs.mkdirSync(path.join(dir, 'dist'), { recursive: true });
+  fs.symlinkSync(target, path.join(dir, 'dist', releaseName(dir)));
+
+  const r = runPackage(dir);
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /出力先 .* がシンボリックリンクです/, '作る前の確認で止まっていない');
+  assert.equal(fs.readFileSync(target, 'utf8'), 'もとの中身', 'リンク先を書き換えた');
+});
+
+test('T15. 出力先が通常のファイルでなければ失敗する（FIFO）', (t) => {
+  const dir = makeRepo(t);
+  fs.mkdirSync(path.join(dir, 'dist'), { recursive: true });
+  const out = path.join(dir, 'dist', releaseName(dir));
+  const mk = spawnSync('mkfifo', [out]);
+  if (mk.status !== 0) {
+    assert.fail(`mkfifo が使えないため確認できない: ${mk.stderr}`);
+  }
+
+  const r = runPackage(dir);
+  assert.notEqual(r.status, 0, 'FIFO なのに成功した');
+  assert.match(r.stderr, /出力先 .* が通常のファイルではありません/, '作る前の確認で止まっていない');
+  assert.ok(fs.lstatSync(out).isFIFO(), 'FIFO が置き換わった');
+});
+
+test('T16. 成功したときの成果物は、通常のファイルで、表示した SHA-256 と一致する', (t) => {
+  const dir = makeRepo(t);
+  const name = releaseName(dir);
+  const out = path.join(dir, 'dist', name);
+
+  // 先に別の中身の成果物を置いておく（置き換わることまで見る）
+  fs.mkdirSync(path.join(dir, 'dist'), { recursive: true });
+  fs.writeFileSync(out, '前の成果物');
+  const before = sha256(out);
+
+  const r = runPackage(dir);
+  assert.equal(r.status, 0, `失敗した: ${r.stderr}`);
+
+  const st = fs.lstatSync(out);
+  assert.ok(!st.isSymbolicLink(), '成果物がシンボリックリンクになっている');
+  assert.ok(st.isFile(), '成果物が通常のファイルではない');
+
+  const actual = sha256(out);
+  assert.notEqual(actual, before, '前の成果物が置き換わっていない');
+
+  const reported = /SHA-256 : ([0-9a-f]{64})/.exec(r.stdout);
+  assert.ok(reported, `表示に SHA-256 が無い: ${r.stdout}`);
+  assert.equal(actual, reported[1], '表示した SHA-256 と実物が違う');
+
+  // 一時ファイルが残っていない
+  assert.deepEqual(distEntries(dir), [name], 'dist に余分なものが残っている');
 });
 
 // ---- 17. 同じ環境での再現性 ----
