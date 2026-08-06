@@ -33,6 +33,10 @@ const FIXTURE_FILES = [
   'package.json',
   'tools/package.sh',
   'tools/package-files.txt',
+  // 置いたあとの検査を撃つための差し込み。fixture の中へ複製して、
+  // **相対パスで**読み込む。絶対パスだと、リポジトリの置き場所に空白が
+  // あるときに NODE_OPTIONS が途中で切れて読み込めない（実測）。
+  'tools/fs-fault-shim.js',
 ];
 
 function which(cmd) {
@@ -46,8 +50,16 @@ function which(cmd) {
 //
 // skip にはしない。ここは提出前の関門なので、確かめられないまま
 // 「通った」と表示されるほうが危ない。
-const REQUIRED_COMMANDS = ['sh', 'bash', 'git', 'zip', 'unzip', 'cmp'];
+// mkfifo はテスト側が直接使う。shasum / sha256sum は package.sh が使う
+// （どちらか一方あればよい）。ここで名前を挙げて止めないと、
+// 「足りない道具はテスト冒頭で名前を挙げて止まる」という説明と食い違う。
+const REQUIRED_COMMANDS = ['sh', 'bash', 'git', 'zip', 'unzip', 'cmp', 'mkfifo'];
+const EITHER_COMMANDS = [['shasum', 'sha256sum']];
+
 const MISSING = REQUIRED_COMMANDS.filter((c) => !which(c));
+for (const group of EITHER_COMMANDS) {
+  if (!group.some((c) => which(c))) MISSING.push(group.join(' か '));
+}
 if (MISSING.length > 0) {
   throw new Error(
     `提出物のテストに必要なコマンドがありません: ${MISSING.join(', ')}\n` +
@@ -758,7 +770,9 @@ test('T16. 成功したときの成果物は、通常のファイルで、表示
 // 変わった」「置いたあとに中身が変わった」場面を作る。
 // 製品側のコードにはデバッグ用の分岐を足していない。
 
-const FAULT_SHIM = path.join(REPO, 'tools', 'fs-fault-shim.js');
+// NODE_OPTIONS の値に空白があると、引用符で囲まない限りそこで切れる。
+// fixture の中の相対パスを使えば、リポジトリの置き場所に依存しない。
+const FAULT_SHIM = './tools/fs-fault-shim.js';
 
 test('T17. 置いたあとに型が変わっていたら、成果物を残さず失敗する', (t) => {
   const dir = makeRepo(t);

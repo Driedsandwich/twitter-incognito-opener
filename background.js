@@ -64,8 +64,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (direct) {
     // この経路では content script に聞かないが、直前の右クリックで
     // content script 側が同じポストのURLを控えている。使わないまま
-    // 残すと「一度使ったら捨てる」と食い違うので、先に消してもらう。
-    await clearContextTarget(tabId, frameId, direct);
+    // 残すと「一度使ったら捨てる」と食い違うので、消してもらう。
+    //
+    // **完了は待たない。** 消去は届かなくてもよい処理なのに、応答を待つと、
+    // 相手が返してこない間このウィンドウが開かなくなる。
+    // 待たなければ、消去の成否にかかわらず開く動作が遅れない。
+    void clearContextTarget(tabId, frameId, direct);
     openIncognito(direct, tabId, frameId);
     return;
   }
