@@ -52,7 +52,7 @@ jobs:
 
   # 利用者に Windows の Chrome が多いので、拡張そのもののテストは Windows でも走らせる。
   #
-  # 提出物を作る手順のテスト（test/package-script.test.js）はここでは走らせない。
+  # 提出物を作る手順のテスト（integration/package-script.js）はここでは走らせない。
   # Windows のランナーには zip と unzip が入っておらず（実測: runner-images の
   # Windows2025 一覧に記載なし。7zip のみ）、入れると CI の依存が増える。
   # 提出物を作るのは macOS の手元と上の Ubuntu ジョブだけなので、そこで守る。

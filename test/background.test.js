@@ -51,6 +51,10 @@ function harness(options = {}) {
           if (options.clearRejects) {
             return Promise.reject(new Error('Receiving end does not exist'));
           }
+          // 応答が返ってこない場面。相手が固まっている状態を作る。
+          if (options.clearHangs) {
+            return new Promise(() => {});
+          }
           return Promise.resolve(options.clearResponse || { cleared: true });
         }
         return Promise.resolve();
@@ -143,6 +147,24 @@ test('右クリックしたリンクがポストなら、正規化してその�
     'https://x.com/alice/status/123',
     '消去の対象が、開くのと同じ正規化済みURLになっていない'
   );
+});
+
+test('消去の応答が返ってこなくても、直接リンクは開く', async () => {
+  // 消去は届かなくてもよい処理。応答を待つ作りだと、相手が返してこない間
+  // ウィンドウが開かなくなる。待たない作りなら、同じ turn の中で開く。
+  const h = harness({ clearHangs: true });
+
+  await h.clickMenu(
+    { menuItemId: MENU_ID, linkUrl: 'https://x.com/alice/status/123', frameId: 0 },
+    { id: 7 }
+  );
+
+  assert.equal(h.calls.windowsCreate.length, 1, '消去の応答待ちで開けなくなった');
+  assert.equal(h.calls.windowsCreate[0].url, 'https://x.com/alice/status/123');
+  // 消去そのものは送っている（送らなくなったわけではない）
+  const clears = h.calls.tabsSendMessage.filter((c) => c.msg.type === 'clearContextTarget');
+  assert.equal(clears.length, 1, '消去を送らなくなった');
+  assert.equal(h.calls.executeScript.length, 0);
 });
 
 test('消去が「消さなかった」と答えても、直接リンクは開く', async () => {

@@ -89,11 +89,11 @@ test('配布物に入れてはいけないものが一覧に混ざっていな�
 // Windows のような、提出物を作る道具（bash・zip・unzip）が揃っていない環境でも
 // 拡張そのもののテストは走らせたい。その選び方そのものは
 // test/run-unit-tests.test.js で確かめる。ここでは入口だけを見る。
-test('test:unit は、手で並べた一覧ではなく探索スクリプトを使う', () => {
+test('npm test は、提出物を作る手順のテストも含む', () => {
+  // 提出前の関門を狭めない。--full が外れると、提出物のテストが
+  // 走らないまま「全部通った」に見える。
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-  assert.equal(pkg.scripts['test:unit'], 'node tools/run-unit-tests.js');
-  // npm test は full suite のまま（提出前の関門を狭めない）
-  assert.equal(pkg.scripts.test, 'node --test');
+  assert.match(pkg.scripts.test, /--full/);
 });
 
 test('package.sh は一覧をファイルから読んでいる（二重管理になっていない）', () => {
