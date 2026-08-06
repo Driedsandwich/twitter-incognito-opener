@@ -297,6 +297,16 @@ else
   OUT="dist/postcloak-${VERSION}-${SHORT_COMMIT}.zip"
 fi
 
+# 出力先そのものの型も、作り始める前に見る。
+# ここで見ておくと、中身を全部作ってから最後に落ちるのを避けられる。
+# 最終確認は §12 でもう一度行う（作っている間に置き換えられる可能性があるため）。
+if [ -L "$OUT" ]; then
+  fail "出力先 ${OUT} がシンボリックリンクです"
+fi
+if [ -e "$OUT" ] && [ ! -f "$OUT" ]; then
+  fail "出力先 ${OUT} が通常のファイルではありません"
+fi
+
 # ---------- 9. 一時ファイルへ作る（最終的な名前へは最後に移す）----------
 
 # 最終出力と同じ場所に作る。別のファイルシステムだと mv が atomic にならない。
@@ -406,11 +416,57 @@ else
 fi
 
 # ---------- 12. 全部通ってから、最終的な名前へ移す ----------
+#
+# `mv A B` は B がディレクトリだと「B の中へ入れる」に化ける。実測では、
+# B がディレクトリでも、ディレクトリへのシンボリックリンクでも mv は成功し、
+# ZIP は B の中（リンクならリポジトリの外）へ置かれた。
+# それでも表示は「作成: B」のままなので、**提出物ができたという主張だけが嘘になる**。
+#
+# そこで mv を使わず、ファイル同士の置き換えとして扱う。
+# 置く前に相手の型を見て、置いたあとにもう一度型と中身を確かめる。
+if ! node -e '
+  const fs = require("fs");
+  const crypto = require("crypto");
+  // node -e では、渡した引数は argv[1] から並ぶ（argv[0] は node 自身）
+  const [tmp, out, expected] = process.argv.slice(1);
+  const die = (m) => { console.error(m); process.exit(1); };
 
-if ! mv -f "$TMP_ARCHIVE" "$OUT"; then
-  fail "成果物を $OUT へ移せませんでした"
+  let before = null;
+  try {
+    before = fs.lstatSync(out);
+  } catch (e) {
+    if (e.code !== "ENOENT") die("出力先を調べられません: " + e.message);
+  }
+  if (before) {
+    if (before.isSymbolicLink()) die("置き換え先の " + out + " がシンボリックリンクです");
+    if (!before.isFile()) die("置き換え先の " + out + " が通常のファイルではありません");
+  }
+
+  try {
+    fs.renameSync(tmp, out);
+  } catch (e) {
+    die("成果物を " + out + " へ置けませんでした: " + e.message);
+  }
+
+  const after = fs.lstatSync(out);
+  const bad = after.isSymbolicLink() ? "シンボリックリンク" : !after.isFile() ? "通常のファイルではないもの" : null;
+  if (bad) {
+    try { fs.unlinkSync(out); } catch (e) {}
+    die("置いたあとの " + out + " が" + bad + "になっています");
+  }
+
+  const sha = crypto.createHash("sha256").update(fs.readFileSync(out)).digest("hex");
+  if (sha !== expected) {
+    try { fs.unlinkSync(out); } catch (e) {}
+    die("置いたあとの " + out + " の SHA-256 が検査時と違います");
+  }
+' "$TMP_ARCHIVE" "$OUT" "$SHA"; then
+  fail "成果物を ${OUT} へ置けませんでした"
 fi
 TMP_ARCHIVE=""
+
+# ここまでが提出物を作る処理。以降は表示だけなので、成功の印はここで立てる。
+COMPLETED=1
 
 echo "作成: $OUT"
 if [ "$MODE" = release ]; then
@@ -424,6 +480,3 @@ echo "  SHA-256 : $SHA"
 echo "  git     : $(git --version)"
 echo "--- 実際に入ったファイル ---"
 printf '%s\n' "$actual_files"
-
-# ここまで来たときだけ成功とみなす（cleanup がこの印を見る）
-COMPLETED=1

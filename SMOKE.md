@@ -1,7 +1,7 @@
 # 実機での確認手順（手動）
 
-自動テストで確かめられるのは、URL の判定と content script の組み立てまでです。
-**Chrome に読み込んだ状態での動き**は自動化できないので、ここに手順を書いておきます。
+自動テストで確かめているのは、URL の判定・content script の組み立て・background service worker・manifest と翻訳ファイルの整合・提出物を作る手順（実際に起動して失敗を注入するところまで）です。
+**Chrome に読み込んだ状態での動き**——実際の DOM、Chrome の API、OS のショートカット、表示言語、字体、そして提出する ZIP そのもの——は自動化できないので、ここに手順を書いておきます。
 
 ストアへ更新を出す前に、この表を1枚コピーして埋めてください。
 **確認していない項目を「問題なし」として扱わないこと。** 未実施は未実施と書きます。
@@ -67,15 +67,39 @@
 | 23 | 同じく日本語 | 日本語で出る | |
 | 24 | DevTools の Network（拡張の service worker） | 拡張自身が出す外部通信が無い | |
 | 25 | 一連の操作のあと Console | エラーが出ていない | |
-| 26 | ポストを右クリックし、**メニューを押さずに1分以上待ってから**もう一度右クリックしてメニューを押す | 前のポストが開かず、正しく今のポストが開く（古い値が使われない） | |
+| 26 | ポスト A を右クリック → **Esc でメニューを閉じる** → **一切右クリックせずに**65秒待つ → 補助手順で `getContextTarget` を尋ねる | `{ url: null }`（タイマーが参照を消している）。**待っている間に右クリックしないこと**——右クリックすると、それ自体が値を書き換えるので、タイマーを外しても同じ結果になる | |
 | W1 | **Windows のみ**: ポストを Shift+Alt クリック | **Left Alt+Shift が OS 側の切替に割り当てられている構成**: ポストが開く。入力言語は OS の設定どおり切り替わり得る。**割り当てられていない構成**: ポストだけが開く。どちらでもポストが開くこと自体は変わらない | |
 | W2 | **Windows のみ**: Left Alt+Shift に切替が割り当てられていない状態（入力言語が1つ、または別のホットキー）で Shift+Alt クリック | 入力言語は切り替わらず、ポストだけが開く | |
 | W3 | **Windows のみ**: US-International などの配列で、**AltGr を押しながら**ポストをクリック | **何も起きない**（AltGr が Ctrl+Alt として届く場合と、`getModifierState('AltGraph')` でしか分からない場合の両方を対象外にしてある）。**Windows 実機では未確認** | |
 | W4 | **Windows のみ**: 通知の帯を出す（ポストの外で右クリック→メニュー） | 文字が読める字体で表示され、崩れや豆腐が出ない | |
 | W5 | **Windows のみ**: 英語ロケールの Chrome でメニューと通知を見る | 英語で表示される（メニュー: "Open this post in an Incognito window (Shift+Alt click)"） | |
-| 27 | x.com の DevTools コンソールで、ページ側から合成イベントを投げる<br>`document.body.dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:true,altKey:true}))` | **シークレットウィンドウが開かない**（`isTrusted` が false のイベントは受け取らない） | |
-| 28 | 同じく合成の `contextmenu` を投げたあと、正しいポストを右クリックしてメニューを押す | 合成イベントに邪魔されず、正しいポストが開く | |
-| 29 | ポストの**タイムスタンプ（リンク）を右クリック**してメニューを押し、そのあと**ポストの外**を右クリックしてメニューを押す | 1回目は正しいポストが開く。2回目は**前のポストが開かず**、「見つかりません」の帯が出る（直接開いた回の値が残っていない） | |
+| 27 | x.com の DevTools コンソールで、**ポストの中の要素へ**合成イベントを投げる<br>`document.querySelector('article').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true,altKey:true}))` | **シークレットウィンドウが開かない**（`isTrusted` が false のイベントは受け取らない）。**`document.body` へ投げてはいけない**——ポストの外なのでURLが見つからず、`isTrusted` の検査を外しても何も起きない | |
+| 28 | 補助手順で控えを空にしてから、**ポストの中の要素へ**合成の `contextmenu` を投げる<br>`document.querySelector('article').dispatchEvent(new MouseEvent('contextmenu',{bubbles:true}))`<br>その後**右クリックせずに**補助手順で尋ねる | `{ url: null }`（合成イベントでは値を控えない）。**このあと本物の右クリックをしてはいけない**——それが値を書き換えるので、`isTrusted` の検査を外しても同じ結果になる | |
+| 29 | ポストの**タイムスタンプ（リンク）を右クリック**してメニューを押す → 元のタブへ戻り、**右クリックせずに**補助手順で尋ねる | 1回目は正しいポストが開く。尋ねた結果は `{ url: null }`（直接開いた回に消している）。**ポストの外を右クリックして確かめてはいけない**——その右クリック自体が値を消すので、消去の仕組みを外しても同じ結果になる | |
+
+## 補助手順：新しい右クリックをせずに、控えている値を確かめる
+
+#26〜#29 は「拡張が値を消したか」を見る項目です。**確認のためにもう一度右クリックすると、その右クリック自体が値を上書きしてしまい、検査したい仕組みを外しても同じ結果になります。** そこで、拡張の service worker のコンソールから直接尋ねます。
+
+1. `chrome://extensions` で PostCloak の **「Service Worker」** を押して DevTools を開く
+2. コンソールで対象タブの ID を調べる
+
+```js
+const tabs = await chrome.tabs.query({
+  url: ['https://x.com/*', 'https://www.x.com/*', 'https://twitter.com/*', 'https://www.twitter.com/*'],
+  incognito: false,
+});
+tabs.map(({ id, url }) => ({ id, url }));
+```
+
+3. 控えている値を尋ねる（**一度尋ねると消えます**。1回の確認につき1回だけ実行）
+
+```js
+await chrome.tabs.sendMessage(TAB_ID, { type: 'getContextTarget' }, { frameId: 0 });
+```
+
+`{ url: null }` なら控えていない、`{ url: "https://x.com/..." }` なら控えている、という意味です。
+
 
 ## 過去の記録
 

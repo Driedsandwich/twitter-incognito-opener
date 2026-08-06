@@ -97,8 +97,10 @@ test('package.sh は一覧をファイルから読んでいる（二重管理に
   assert.match(src, /git show HEAD:manifest\.json/);
   // index の印は git diff では見えないので、印そのものを見る
   assert.match(src, /git ls-files -v -z/);
-  // 検査を通ってから最終的な名前へ移す
-  assert.match(src, /mv -f "\$TMP_ARCHIVE" "\$OUT"/);
+  // 最終配置は mv を使わない。mv は相手がディレクトリだと「中へ入れる」に化ける
+  assert.doesNotMatch(src, /mv -f "\$TMP_ARCHIVE" "\$OUT"/, 'mv による最終配置が残っている');
+  assert.match(src, /fs\.renameSync\(tmp, out\)/, 'ファイル同士の置き換えになっていない');
+  assert.match(src, /fs\.lstatSync\(out\)/, '置いたあとの型を確かめていない');
   // 逃げ道は厳密に 1 のときだけ
   assert.match(src, /POSTCLOAK_ALLOW_DIRTY_PACKAGE:-\}" != "1"/);
 });

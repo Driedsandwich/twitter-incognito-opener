@@ -113,7 +113,43 @@ test('package.json と manifest のバージョンが揃っている', () => {
   assert.equal(readJson('package.json').version, manifest.version);
 });
 
+// 効かせたい範囲。ここを変えるときは、掲載文と PRIVACY.md も同時に直す。
+const ALLOWED_ORIGINS = [
+  'https://www.twitter.com/*',
+  'https://www.x.com/*',
+  'https://twitter.com/*',
+  'https://x.com/*',
+].sort();
+
 test('要求している権限が2つのままである', () => {
   assert.deepEqual([...manifest.permissions].sort(), ['contextMenus', 'scripting']);
-  assert.equal(manifest.host_permissions.length, 4);
+  // 追加で権限を取る余地も残さない
+  assert.equal(manifest.optional_permissions, undefined, 'optional_permissions が増えている');
+  assert.equal(manifest.optional_host_permissions, undefined, 'optional_host_permissions が増えている');
+});
+
+test('効かせるオリジンが、4つの完全一致のままである', () => {
+  // 件数だけを見ると、1つを <all_urls> に置き換えても通ってしまう。
+  // content script は matches に当たるページで毎回読み込まれるので、
+  // ここは権限が広がったことに気づける最後の場所になる。
+  assert.deepEqual([...manifest.host_permissions].sort(), ALLOWED_ORIGINS);
+
+  for (const cs of manifest.content_scripts) {
+    assert.deepEqual([...cs.matches].sort(), ALLOWED_ORIGINS, 'content_scripts の matches が違う');
+  }
+});
+
+test('広い書き方のオリジンが混ざっていない', () => {
+  // 完全一致の検査に加えて、危ない書き方そのものを名指しで拒む。
+  // 範囲を広げる変更をしたときに、期待値の側だけ直して通してしまうのを防ぐ。
+  const patterns = [
+    ...manifest.host_permissions,
+    ...manifest.content_scripts.flatMap((cs) => cs.matches),
+  ];
+  for (const p of patterns) {
+    assert.ok(p !== '<all_urls>', `<all_urls> が入っている: ${p}`);
+    assert.ok(!p.includes('*://'), `スキームがワイルドカードになっている: ${p}`);
+    assert.ok(!/^https:\/\/\*/.test(p), `ホストがワイルドカードになっている: ${p}`);
+    assert.ok(p.startsWith('https://'), `https 以外が入っている: ${p}`);
+  }
 });

@@ -65,7 +65,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     // この経路では content script に聞かないが、直前の右クリックで
     // content script 側が同じポストのURLを控えている。使わないまま
     // 残すと「一度使ったら捨てる」と食い違うので、先に消してもらう。
-    await clearContextTarget(tabId, frameId);
+    await clearContextTarget(tabId, frameId, direct);
     openIncognito(direct, tabId, frameId);
     return;
   }
@@ -97,9 +97,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // このタブに content script がいない（拡張より前から開いていた等）場合、
 // そもそも控えている値も無い。ここで入れ直したり画面に出したりすると、
 // 成功している操作に余計な断りを足すことになるので、黙って進む。
-async function clearContextTarget(tabId, frameId) {
+async function clearContextTarget(tabId, frameId, expectedUrl) {
   try {
-    await chrome.tabs.sendMessage(tabId, { type: 'clearContextTarget' }, { frameId });
+    await chrome.tabs.sendMessage(tabId, { type: 'clearContextTarget', expectedUrl }, { frameId });
   } catch (e) {
     // 握り潰してよい唯一の場所。開く操作の成否には関係しない。
   }

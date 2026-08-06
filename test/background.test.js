@@ -47,8 +47,11 @@ function harness(options = {}) {
             ? Promise.reject(new Error('Receiving end does not exist'))
             : Promise.resolve(options.contextResponse || { url: null });
         }
-        if (msg.type === 'clearContextTarget' && options.clearRejects) {
-          return Promise.reject(new Error('Receiving end does not exist'));
+        if (msg.type === 'clearContextTarget') {
+          if (options.clearRejects) {
+            return Promise.reject(new Error('Receiving end does not exist'));
+          }
+          return Promise.resolve(options.clearResponse || { cleared: true });
         }
         return Promise.resolve();
       },
@@ -134,6 +137,22 @@ test('右クリックしたリンクがポストなら、正規化してその�
   assert.deepEqual(types, ['clearContextTarget'], '送ったメッセージが想定と違う');
   assert.equal(h.calls.tabsSendMessage[0].tabId, 7);
   assert.equal(h.calls.tabsSendMessage[0].opts.frameId, 0);
+  // 消す対象を指定する。指定が無いと、遅れて届いた消去が別の値を消す。
+  assert.equal(
+    h.calls.tabsSendMessage[0].msg.expectedUrl,
+    'https://x.com/alice/status/123',
+    '消去の対象が、開くのと同じ正規化済みURLになっていない'
+  );
+});
+
+test('消去が「消さなかった」と答えても、直接リンクは開く', async () => {
+  const h = harness({ clearResponse: { cleared: false, reason: 'mismatch' } });
+  await h.clickMenu(
+    { menuItemId: MENU_ID, linkUrl: 'https://x.com/alice/status/123', frameId: 0 },
+    { id: 7 }
+  );
+  assert.equal(h.calls.windowsCreate.length, 1, '消せなかったことで開けなくなった');
+  assert.equal(h.calls.executeScript.length, 0);
 });
 
 test('控えた値の消去に失敗しても、直接リンクは開く', async () => {

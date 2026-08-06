@@ -201,8 +201,21 @@
     // 保存した値だけが残ってしまうので、開く前に消してもらう。
     // 画面には何も出さない（利用者から見れば操作は成功している）。
     if (msg && msg.type === 'clearContextTarget') {
-      clearLastContext();
-      sendResponse({ cleared: true });
+      // 消す対象を指定しない消去は受け付けない。
+      // 消去の依頼は非同期に届くので、遅れて着いた古い依頼が、その後に
+      // 控えた別のポストを消してしまう。判定は「いま控えている値と、
+      // 開こうとしている値が同じか」で行う。
+      const expected = PostCloakUrl.toPostUrl(msg.expectedUrl, location.href);
+      if (!expected) {
+        sendResponse({ cleared: false, reason: 'invalid' });
+      } else if (!lastContext) {
+        sendResponse({ cleared: false, reason: 'empty' });
+      } else if (lastContext.url !== expected) {
+        sendResponse({ cleared: false, reason: 'mismatch' });
+      } else {
+        clearLastContext();
+        sendResponse({ cleared: true });
+      }
       return false;
     }
     if (msg && msg.type === 'notify') {
