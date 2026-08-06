@@ -25,6 +25,30 @@
 
   /* ---------- 0. 定数 ---------- */
 
+  // 画面へ出す文言は、読み込み時に控えておく。
+  //
+  // 拡張を更新・無効化すると、このタブに残った content script は文脈を失い、
+  // そのとき chrome.i18n ごと消える（2026-08-06 実機で確認）。あとから
+  // getMessage を呼ぶと、知らせるための処理そのものが例外で落ちて、
+  // 帯が出ないまま終わる——「黙って何も起きない」を避けるための仕組みが、
+  // いちばん必要な場面で動かなくなっていた。
+  //
+  // 控えは読み込み時なので、そのときは chrome.i18n が生きている。
+  const TEXT = {
+    noPost: message('errorNoPostFound', 'No post here. Right-click inside a post.'),
+    disconnected: message('errorDisconnected', 'Lost the connection to the extension. Reload this page.'),
+  };
+
+  // 既定のロケールは en。読み込み時点で i18n が使えなかったときだけ控えを使う。
+  function message(key, fallback) {
+    try {
+      const text = chrome.i18n && chrome.i18n.getMessage(key);
+      return text || fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
   // 右クリックの直後にメニューが押される前提の仕組みなので、古い値は使わない。
   const CONTEXT_TTL_MS = 60_000;
 
@@ -204,7 +228,7 @@
       // timer は停止中のタブなどで遅れて動くことがあるので、時刻の判定も残す。
       // どちらか一方ではなく、両方で 60 秒を超えた値を返さないようにする。
       const fresh = ctx && Date.now() - ctx.at < CONTEXT_TTL_MS;
-      if (!fresh) notify(chrome.i18n.getMessage('errorNoPostFound'));
+      if (!fresh) notify(TEXT.noPost);
       sendResponse({ url: fresh ? ctx.url : null });
       return false;
     }
@@ -236,7 +260,7 @@
       return false;
     }
     if (msg && msg.type === 'notify') {
-      notify(msg.text || chrome.i18n.getMessage('errorNoPostFound'));
+      notify(msg.text || TEXT.noPost);
       return false;
     }
     return false;
@@ -255,7 +279,7 @@
 
   function onSendError(e) {
     console.error('[PostCloak] background へ渡せませんでした:', e);
-    notify(chrome.i18n.getMessage('errorDisconnected'));
+    notify(TEXT.disconnected);
   }
 
   /* ---------- 5. 画面への通知 ---------- */

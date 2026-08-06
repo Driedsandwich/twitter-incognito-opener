@@ -475,6 +475,60 @@ test('一度渡したら timer も解除される', () => {
   assert.equal(h.pendingTimers(TTL), 0, '渡したあとに timer が残っている');
 });
 
+// ---- 拡張を更新・無効化したあと（文脈を失った content script）----
+//
+// 実機で見つかった不具合。拡張を読み込み直すと、そのタブに残った content script は
+// 文脈を失い、chrome.i18n ごと消える。そのとき getMessage を呼ぶと、
+// 「利用者に知らせる」ための処理自体が例外で落ちて、帯が出ないまま終わっていた。
+
+function breakExtensionContext(h) {
+  // 文脈を失った状態を作る。chrome.i18n が消え、sendMessage は例外を投げる。
+  h.sandbox.chrome.i18n = undefined;
+  h.sandbox.chrome.runtime.sendMessage = () => {
+    throw new Error('Extension context invalidated.');
+  };
+}
+
+test('文脈を失ったあとの Shift+Alt クリックでも、帯が出る', () => {
+  const h = harness();
+  h.load();
+
+  // 対照: 壊す前は普通に送れている
+  shiftAltClick(h, h.postElement('/alice/status/1'));
+  assert.equal(h.sent.length, 1, '対照が成立していない（送れていない）');
+
+  breakExtensionContext(h);
+  shiftAltClick(h, h.postElement('/alice/status/2'));
+
+  const toast = h.created.find((el) => el.tagName === 'DIV');
+  assert.ok(toast, '帯が作られていない（知らせる処理が落ちている）');
+  assert.equal(toast.textContent, 'msg:errorDisconnected', '読み込み時に控えた文言が出ていない');
+});
+
+test('文脈を失っても、知らせる処理そのものは例外にならない', () => {
+  const h = harness();
+  h.load();
+  breakExtensionContext(h);
+
+  // 例外が漏れると、この呼び出し自体が落ちる
+  shiftAltClick(h, h.postElement('/alice/status/1'));
+  assert.equal(h.sent.length, 0, '壊した後に送れてしまっている');
+});
+
+test('文言は読み込み時に控える（あとで i18n が消えても影響しない）', () => {
+  const h = harness();
+  h.load();
+  h.sandbox.chrome.i18n = undefined;
+
+  // ポストの外を右クリックしてから問い合わせる経路でも、文言が出る
+  h.fire('contextmenu', { target: h.strayElement() });
+  h.ask({ type: 'getContextTarget' });
+
+  const toast = h.created.find((el) => el.tagName === 'DIV');
+  assert.ok(toast, '帯が作られていない');
+  assert.equal(toast.textContent, 'msg:errorNoPostFound');
+});
+
 // ---- ページ側が作った合成イベントを受け取らない ----
 
 test('合成の contextmenu は、context を作らず既存も上書きしない', () => {
