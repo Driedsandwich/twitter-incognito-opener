@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "test": "node --test",
-    "test:unit": "node --test test/post-url.test.js test/content-script.test.js test/background.test.js test/manifest.test.js test/package.test.js",
+    "test:unit": "node tools/run-unit-tests.js",
     "check": "node --check post-url.js && node --check background.js && node --check content.js && node -e \"['manifest.json','_locales/en/messages.json','_locales/ja/messages.json','package.json'].forEach(f => JSON.parse(require('fs').readFileSync(f, 'utf8')))\"",
     "package": "bash tools/package.sh"
   }

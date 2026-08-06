@@ -105,7 +105,8 @@ npm run package  # ストア提出用の ZIP を dist/ に作る
 |---|---|
 | **拡張そのもの** | なし。外部の npm パッケージにも JavaScript ライブラリにも依存していません |
 | **開発と、拡張のテスト** | Node.js 22 以降 |
-| **`npm test` の全体と `npm run package`** | Node.js 22 以降に加えて **Git・Bash・zip・unzip**、およびシンボリックリンクを扱える POSIX 環境 |
+| **`npm test` の全体と `npm run package`** | Node.js 22 以降に加えて **Git・Bash・zip・unzip・cmp**、およびシンボリックリンクを扱える POSIX 環境 |
+| **`npm run test:unit`** | Node.js 22 以降だけ。提出物を作る手順のテストを除いたもので、Windows でも走ります |
 
 `npm test` には、提出用 ZIP を作る手順そのものを実際に起動して確かめるテストが含まれます。そのため、拡張のコードだけを見る場合より必要なものが多くなります。**Node.js だけを入れた素の Windows では全体は走りません。** WSL か、必要な道具の揃った Git Bash などを使ってください。足りない道具があるときは、テストの冒頭で名前を挙げて止まります。
 

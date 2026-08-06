@@ -87,40 +87,12 @@ test('配布物に入れてはいけないものが一覧に混ざっていな�
 });
 
 // Windows のような、提出物を作る道具（bash・zip・unzip）が揃っていない環境でも
-// 拡張そのもののテストは走らせたい。そのための test:unit が、テストを1つ書き足した
-// ときに黙って取りこぼさないようにする。
-//
-// 除外してよいのは「提出物を作る手順を実際に起動するテスト」だけ。
-const TOOLCHAIN_ONLY = ['package-script.test.js'];
-
-test('test:unit が、道具を要するテスト以外をすべて含んでいる', () => {
+// 拡張そのもののテストは走らせたい。その選び方そのものは
+// test/run-unit-tests.test.js で確かめる。ここでは入口だけを見る。
+test('test:unit は、手で並べた一覧ではなく探索スクリプトを使う', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-  const script = pkg.scripts['test:unit'];
-  assert.ok(script, 'test:unit が定義されていない');
-
-  const listed = script
-    .split(/\s+/)
-    .filter((t) => t.startsWith('test/'))
-    .map((t) => t.replace(/^test\//, ''))
-    .sort();
-
-  const all = fs
-    .readdirSync(path.join(ROOT, 'test'))
-    .filter((f) => f.endsWith('.test.js'))
-    .sort();
-
-  const expected = all.filter((f) => !TOOLCHAIN_ONLY.includes(f));
-  assert.deepEqual(listed, expected, 'test:unit の一覧と test/ の中身が食い違っている');
-
-  // 除外しているファイルが実在することも見る（名前を変えたら気づけるように）
-  for (const f of TOOLCHAIN_ONLY) {
-    assert.ok(all.includes(f), `除外リストのファイルが存在しない: ${f}`);
-  }
-});
-
-// npm test は full suite のまま（提出前の関門を狭めない）
-test('npm test は全体を走らせる', () => {
-  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.equal(pkg.scripts['test:unit'], 'node tools/run-unit-tests.js');
+  // npm test は full suite のまま（提出前の関門を狭めない）
   assert.equal(pkg.scripts.test, 'node --test');
 });
 
