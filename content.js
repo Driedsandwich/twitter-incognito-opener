@@ -196,6 +196,15 @@
       sendResponse({ url: fresh ? ctx.url : null });
       return false;
     }
+    // 右クリックした先が、それ自体ポストのURLだった場合、background は
+    // このタブへ問い合わせずに開ける。その経路だと、直前の contextmenu で
+    // 保存した値だけが残ってしまうので、開く前に消してもらう。
+    // 画面には何も出さない（利用者から見れば操作は成功している）。
+    if (msg && msg.type === 'clearContextTarget') {
+      clearLastContext();
+      sendResponse({ cleared: true });
+      return false;
+    }
     if (msg && msg.type === 'notify') {
       notify(msg.text || chrome.i18n.getMessage('errorNoPostFound'));
       return false;

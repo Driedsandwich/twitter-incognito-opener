@@ -89,9 +89,14 @@ test('配布物に入れてはいけないものが一覧に混ざっていな�
 test('package.sh は一覧をファイルから読んでいる（二重管理になっていない）', () => {
   const src = fs.readFileSync(path.join(ROOT, 'tools', 'package.sh'), 'utf8');
   assert.match(src, /FILES_LIST=tools\/package-files\.txt/);
-  assert.match(src, /done < "\$FILES_LIST"/);
+  assert.match(src, /done < "\$LIST_SOURCE"/);
   // 通常モードは HEAD のコミット内容から作る
   assert.match(src, /git archive --format=zip/);
+  // 通常モードの一覧と version も HEAD から読む（作業ツリーを基準にしない）
+  assert.match(src, /git show "HEAD:\$FILES_LIST"/);
+  assert.match(src, /git show HEAD:manifest\.json/);
+  // index の印は git diff では見えないので、印そのものを見る
+  assert.match(src, /git ls-files -v -z/);
   // 検査を通ってから最終的な名前へ移す
   assert.match(src, /mv -f "\$TMP_ARCHIVE" "\$OUT"/);
   // 逃げ道は厳密に 1 のときだけ

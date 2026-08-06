@@ -47,6 +47,9 @@ function harness(options = {}) {
             ? Promise.reject(new Error('Receiving end does not exist'))
             : Promise.resolve(options.contextResponse || { url: null });
         }
+        if (msg.type === 'clearContextTarget' && options.clearRejects) {
+          return Promise.reject(new Error('Receiving end does not exist'));
+        }
         return Promise.resolve();
       },
     },
@@ -125,7 +128,24 @@ test('右クリックしたリンクがポストなら、正規化してその�
   assert.equal(h.calls.windowsCreate.length, 1);
   assert.equal(h.calls.windowsCreate[0].url, 'https://x.com/alice/status/123');
   assert.equal(h.calls.windowsCreate[0].incognito, true);
-  assert.equal(h.calls.tabsSendMessage.length, 0, 'content script へ聞く必要はない');
+
+  // 割り出しは頼まないが、直前の右クリックで控えられた値は消してもらう
+  const types = h.calls.tabsSendMessage.map((c) => c.msg.type);
+  assert.deepEqual(types, ['clearContextTarget'], '送ったメッセージが想定と違う');
+  assert.equal(h.calls.tabsSendMessage[0].tabId, 7);
+  assert.equal(h.calls.tabsSendMessage[0].opts.frameId, 0);
+});
+
+test('控えた値の消去に失敗しても、直接リンクは開く', async () => {
+  const h = harness({ clearRejects: true });
+  await h.clickMenu(
+    { menuItemId: MENU_ID, linkUrl: 'https://x.com/alice/status/123', frameId: 0 },
+    { id: 7 }
+  );
+  assert.equal(h.calls.windowsCreate.length, 1, '消去の失敗で開けなくなった');
+  assert.equal(h.calls.executeScript.length, 0, 'content script を入れ直してしまった');
+  const notifies = h.calls.tabsSendMessage.filter((c) => c.msg.type === 'notify');
+  assert.equal(notifies.length, 0, '画面に断りを出してしまった');
 });
 
 test('リンクがポストでないときは、content script に割り出させる', async () => {

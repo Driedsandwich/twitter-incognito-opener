@@ -62,6 +62,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   // content script に「そのリンクが載っているポスト」を割り出させる。
   const direct = PostCloakUrl.toPostUrl(info.linkUrl);
   if (direct) {
+    // この経路では content script に聞かないが、直前の右クリックで
+    // content script 側が同じポストのURLを控えている。使わないまま
+    // 残すと「一度使ったら捨てる」と食い違うので、先に消してもらう。
+    await clearContextTarget(tabId, frameId);
     openIncognito(direct, tabId, frameId);
     return;
   }
@@ -87,6 +91,19 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     if (url) openIncognito(url, tabId, frameId);
   }
 });
+
+// content script が控えている値を捨てさせる。届かなくても構わない。
+//
+// このタブに content script がいない（拡張より前から開いていた等）場合、
+// そもそも控えている値も無い。ここで入れ直したり画面に出したりすると、
+// 成功している操作に余計な断りを足すことになるので、黙って進む。
+async function clearContextTarget(tabId, frameId) {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: 'clearContextTarget' }, { frameId });
+  } catch (e) {
+    // 握り潰してよい唯一の場所。開く操作の成否には関係しない。
+  }
+}
 
 // content script を入れ直し、「もう一度どうぞ」を画面に出す。
 // 右クリックはもう終わっているので、この回の操作は完了できない。
